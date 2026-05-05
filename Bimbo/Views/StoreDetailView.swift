@@ -14,10 +14,11 @@ struct StoreDetailView: View {
             if let store {
                 VStack(alignment: .leading, spacing: 18) {
                     hero(store)
+                    checklistCard
                     detailGrid(store)
                     productHistory(store)
                     visitHistory(store)
-                    PrimaryButton(title: "Escanear anaquel", systemImage: "viewfinder") {
+                    PrimaryButton(title: "Escanear productos", systemImage: "qrcode.viewfinder") {
                         viewModel.startVisit(storeId: store.id)
                         path.append(.scan(store.id))
                     }
@@ -70,6 +71,25 @@ struct StoreDetailView: View {
                 infoCard("Devolucion", store.lastReturn, "arrow.uturn.backward.circle.fill", AppTheme.success)
             }
         }
+    }
+
+    private var checklistCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Checklist operativo", systemImage: "checklist")
+                .font(.headline.weight(.bold))
+            checklistRow("Saludar y confirmar presupuesto del dia")
+            checklistRow("Revisar frente y huecos de anaquel")
+            checklistRow("Escanear QRs de caducidad por producto")
+            checklistRow("Aceptar recomendacion IA y confirmar pedido")
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private func checklistRow(_ title: String) -> some View {
+        Label(title, systemImage: "circle")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
     }
 
     private func infoCard(_ title: String, _ value: String, _ icon: String, _ tint: Color) -> some View {
