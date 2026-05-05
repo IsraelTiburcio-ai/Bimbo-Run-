@@ -1,0 +1,5 @@
+GroqConfig.xcconfig
+.claude/
+DerivedData/
+*.xcuserstate
+xcuserdata/
