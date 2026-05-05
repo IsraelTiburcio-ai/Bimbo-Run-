@@ -11,23 +11,27 @@ struct RouteView: View {
         )
     )
 
+    private let defaultRegion = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 19.4256, longitude: -99.1458),
+        span: MKCoordinateSpan(latitudeDelta: 0.040, longitudeDelta: 0.045)
+    )
+
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
+                    handsFreeCard
                     confirmationBanner
                     metricsGrid
                     routeMap
                     nextStoreCard
-                    truckInventoryCard
-                    handsFreeCard
                     routeStopsList
                 }
                 .padding(18)
             }
             .background(pageBackground)
-            .navigationTitle("Ruta")
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: AppRoute.self) { route in
                 destination(for: route)
             }
@@ -130,6 +134,21 @@ struct RouteView: View {
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .padding(12)
         }
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    mapPosition = .region(defaultRegion)
+                }
+            } label: {
+                Image(systemName: "location.viewfinder")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(AppTheme.deepBlue, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
+            }
+            .padding(12)
+        }
     }
 
     private func markerIcon(for stop: RouteStop) -> String {
@@ -206,43 +225,6 @@ struct RouteView: View {
                 .background(AppTheme.secondarySystemBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-
-    private var truckInventoryCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Inventario del camion")
-                    .font(.title3.weight(.bold))
-                Spacer()
-                Button {
-                    path.append(.inventory)
-                } label: {
-                    Label("Ver inventario", systemImage: "list.bullet.rectangle")
-                        .font(.caption.weight(.bold))
-                }
-                .buttonStyle(.bordered)
-            }
-
-            HStack(spacing: 10) {
-                metric("Total piezas", "\(viewModel.totalAvailableUnits)", "shippingbox.fill", AppTheme.deepBlue)
-                metric("Productos criticos", "\(viewModel.lowInventoryItems.count)", "exclamationmark.triangle.fill", AppTheme.bimboRed)
-            }
-            HStack(spacing: 10) {
-                metric("Proximos a caducar", "\(max(viewModel.scannedProducts.filter { $0.expirationRisk == .nearExpiration }.count, viewModel.totalReturnedUnits))", "calendar.badge.exclamationmark", AppTheme.warning)
-                metric("Reservado sugerido", "\(viewModel.totalReservedSuggested)", "sparkles", AppTheme.success)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(viewModel.truckInventory.prefix(4)) { item in
-                        InventoryMiniCard(item: item, compact: true)
-                            .frame(width: 190)
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var handsFreeCard: some View {
