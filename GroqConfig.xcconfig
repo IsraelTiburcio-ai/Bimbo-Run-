@@ -1,0 +1,5 @@
+// GroqConfig.xcconfig
+// Agrega este archivo a Project > Info > Configurations en Xcode.
+// La API key vive en .env local, que queda fuera de git.
+
+#include? ".env"
