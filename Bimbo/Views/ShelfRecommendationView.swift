@@ -12,7 +12,6 @@ struct ShelfRecommendationView: View {
             VStack(spacing: 14) {
                 statusBanner
                 shelfDiagram
-                actionsCard
                 restockBadge
                 if let retry = onRetry {
                     Button { retry() } label: {
@@ -49,7 +48,7 @@ struct ShelfRecommendationView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text(statusBadge)
+            Text(result.overallStatus.uppercased())
                 .font(.system(size: 11, weight: .black))
                 .foregroundStyle(statusColor)
                 .padding(.horizontal, 10).padding(.vertical, 5)
@@ -59,43 +58,32 @@ struct ShelfRecommendationView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    // MARK: - Shelf Diagram
+    // MARK: - Shelf Diagram (visual)
 
     private var shelfDiagram: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Anaquel", systemImage: "rectangle.split.3x3")
+            Label("Acomodo recomendado", systemImage: "rectangle.split.3x3")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(AppTheme.deepBlue)
 
-            VStack(spacing: 2) {
+            VStack(spacing: 0) {
                 ForEach(orderedZones) { zone in
                     ShelfZoneRow(zone: zone)
+                    if zone.id != orderedZones.last?.id {
+                        // Tablón separador entre niveles
+                        Rectangle()
+                            .fill(Color(white: 0.72))
+                            .frame(height: 6)
+                            .shadow(color: .black.opacity(0.15), radius: 2, y: 2)
+                    }
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color(white: 0.8), lineWidth: 1)
+                    .stroke(Color(white: 0.75), lineWidth: 1.5)
             )
-        }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-
-    // MARK: - Actions Card
-
-    private var actionsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Acciones prioritarias", systemImage: "bolt.fill")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(AppTheme.deepBlue)
-
-            ForEach(result.topActions) { action in
-                ShelfActionRow(action: action)
-                if action.id != result.topActions.last?.id {
-                    Divider()
-                }
-            }
+            .shadow(color: .black.opacity(0.07), radius: 6, y: 3)
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -150,10 +138,6 @@ struct ShelfRecommendationView: View {
         default:         return "Anaquel en buen estado"
         }
     }
-
-    private var statusBadge: String {
-        result.overallStatus.uppercased()
-    }
 }
 
 // MARK: - Zone Row
@@ -162,43 +146,51 @@ struct ShelfZoneRow: View {
     let zone: ShelfZone
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Barra lateral de color
-            Rectangle()
-                .fill(zoneColor)
-                .frame(width: 5)
+        VStack(alignment: .leading, spacing: 0) {
+            // Header de la zona
+            HStack(spacing: 6) {
+                Image(systemName: zoneIcon)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(zoneColor)
+                Text(zone.label.uppercased())
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                recommendationChip
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
 
-            VStack(alignment: .leading, spacing: 8) {
-                // Header de la zona
+            // Productos como tarjetas con imagen
+            if zone.products.isEmpty {
                 HStack {
-                    Image(systemName: zoneIcon)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(zoneColor)
-                    Text(zone.label.uppercased())
-                        .font(.system(size: 11, weight: .black))
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(AppTheme.success)
+                    Text("Nivel completo")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Spacer()
-                    recommendationChip
                 }
-
-                // Chips de productos
-                if zone.products.isEmpty {
-                    Text("Sin cambios")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                } else {
-                    HStack(spacing: 8) {
+                .padding(.horizontal, 14)
+                .padding(.bottom, 12)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
                         ForEach(zone.products) { product in
-                            ProductChip(product: product)
+                            ProductImageCard(product: product)
                         }
-                        Spacer()
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
         }
-        .background(zoneColor.opacity(0.06))
+        .background(zoneColor.opacity(0.05))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(zoneColor)
+                .frame(width: 4)
+        }
     }
 
     private var zoneColor: Color {
@@ -227,44 +219,76 @@ struct ShelfZoneRow: View {
             }
         }()
         return Text(label)
-            .font(.system(size: 10, weight: .black))
+            .font(.system(size: 9, weight: .black))
             .foregroundStyle(color)
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(color.opacity(0.14), in: Capsule())
+            .padding(.trailing, 10)
     }
 }
 
-// MARK: - Product Chip
+// MARK: - Product Image Card
 
-struct ProductChip: View {
+struct ProductImageCard: View {
     let product: ShelfZoneProduct
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: actionIcon)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(actionColor)
-            Text(shortName)
-                .font(.system(size: 11, weight: .semibold))
-                .lineLimit(1)
-            if product.qty > 0 {
-                Text("\(product.qty)")
-                    .font(.system(size: 10, weight: .black))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5).padding(.vertical, 2)
-                    .background(actionColor, in: Capsule())
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 6) {
+                // Imagen del producto desde Assets
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(white: 0.96))
+                        .frame(width: 78, height: 78)
+
+                    if UIImage(named: product.imageName) != nil {
+                        Image(product.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 70, height: 70)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    } else {
+                        Image(systemName: "shippingbox.fill")
+                            .font(.system(size: 30))
+                            .foregroundStyle(actionColor.opacity(0.5))
+                    }
+
+                    // Overlay para "retirar"
+                    if product.action == "retirar" {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.red.opacity(0.35))
+                            .frame(width: 78, height: 78)
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(actionColor.opacity(0.5), lineWidth: 2)
+                )
+
+                Text(product.name)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .frame(width: 78)
+            }
+
+            // Badge de cantidad (solo si hay que reponer)
+            if product.qty > 0 && product.action != "ok" {
+                ZStack {
+                    Circle()
+                        .fill(actionColor)
+                        .frame(width: 24, height: 24)
+                    Text("+\(product.qty)")
+                        .font(.system(size: 9, weight: .black))
+                        .foregroundStyle(.white)
+                }
+                .offset(x: 6, y: -6)
             }
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
-        .background(.background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(actionColor.opacity(0.35), lineWidth: 1)
-        )
-    }
-
-    private var shortName: String {
-        product.name.split(separator: " ").prefix(2).joined(separator: " ")
     }
 
     private var actionColor: Color {
@@ -274,85 +298,11 @@ struct ProductChip: View {
         default:        return AppTheme.success
         }
     }
-
-    private var actionIcon: String {
-        switch product.action {
-        case "retirar": return "xmark"
-        case "reponer": return "plus"
-        default:        return "checkmark"
-        }
-    }
-}
-
-// MARK: - Action Row
-
-struct ShelfActionRow: View {
-    let action: ShelfTopAction
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: typeIcon)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(priorityColor)
-                .frame(width: 36, height: 36)
-                .background(priorityColor.opacity(0.12),
-                            in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-            Text(action.text)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
-
-            Spacer()
-
-            Text(action.priority.uppercased())
-                .font(.system(size: 9, weight: .black))
-                .foregroundStyle(priorityColor)
-                .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(priorityColor.opacity(0.12), in: Capsule())
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var priorityColor: Color {
-        switch action.priority {
-        case "alta":  return .red
-        case "media": return AppTheme.warning
-        default:      return AppTheme.success
-        }
-    }
-
-    private var typeIcon: String {
-        switch action.type {
-        case "subir":   return "arrow.up.circle.fill"
-        case "reponer": return "shippingbox.fill"
-        case "retirar": return "trash.fill"
-        default:        return "eye.fill"
-        }
-    }
 }
 
 // MARK: - Preview
 
 #Preview {
-    let mock = ShelfAnalysisResult(
-        overallStatus: "atencion",
-        shelfZones: [
-            ShelfZone(zone: "top", label: "Nivel alto", recommendation: "ok",
-                      products: [ShelfZoneProduct(name: "Pan Blanco", action: "ok", qty: 0, sku: "PAN-BLANCO")]),
-            ShelfZone(zone: "eye", label: "Nivel vista", recommendation: "urgente",
-                      products: [
-                        ShelfZoneProduct(name: "Medias Noches", action: "reponer", qty: 8, sku: "MEDIAS-NOCHES"),
-                        ShelfZoneProduct(name: "Gansito", action: "retirar", qty: 2, sku: "GANSITO")
-                      ]),
-            ShelfZone(zone: "bottom", label: "Nivel bajo", recommendation: "reponer",
-                      products: [ShelfZoneProduct(name: "Takis", action: "reponer", qty: 6, sku: "TAKIS")])
-        ],
-        topActions: [
-            ShelfTopAction(type: "reponer", text: "Surtir Medias Noches nivel vista", priority: "alta"),
-            ShelfTopAction(type: "retirar", text: "Retirar Gansito caducado", priority: "alta"),
-            ShelfTopAction(type: "subir", text: "Subir Takis a nivel mano", priority: "media")
-        ],
-        estimatedRestock: 16
-    )
+    let mock = ShelfAnalysisService().mockResult()
     ShelfRecommendationView(result: mock, storeName: "Abarrotes Lupita")
 }

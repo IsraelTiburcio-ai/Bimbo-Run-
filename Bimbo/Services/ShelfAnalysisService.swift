@@ -1,16 +1,50 @@
 import Foundation
 
+// MARK: - Catálogo de imágenes disponibles en Assets
+
+enum ShelfProduct: String, CaseIterable {
+    case artesano      = "Artesano"
+    case bigote        = "Bigote"
+    case bimbollos     = "Bimbollos"
+    case bimbuñuelos   = "Bimbuñuelos"
+    case gansito       = "Gansito"
+    case integral      = "Integral"
+    case mediasNoches  = "MediasNoches"
+    case panTostado    = "PanTostado"
+    case panBlanco     = "PanBlanco"
+    case panMolido     = "PanMolido"
+    case pinguinos     = "Pinguinos"
+    case canelitas     = "Canelitas"
+
+    var displayName: String {
+        switch self {
+        case .artesano:     return "Artesano"
+        case .bigote:       return "Bigotes"
+        case .bimbollos:    return "Bimbollos"
+        case .bimbuñuelos:  return "Bimbuñuelos"
+        case .gansito:      return "Gansito"
+        case .integral:     return "Pan Integral"
+        case .mediasNoches: return "Medias Noches"
+        case .panTostado:   return "Pan Tostado"
+        case .panBlanco:    return "Pan Blanco"
+        case .panMolido:    return "Pan Molido"
+        case .pinguinos:    return "Pingüinos"
+        case .canelitas:    return "Canelitas"
+        }
+    }
+}
+
 // MARK: - Response Models
 
 struct ShelfZoneProduct: Decodable {
     let name: String
-    let action: String  // "reponer" | "ok" | "retirar"
+    let imageName: String  // coincide exactamente con el nombre del asset
+    let action: String     // "reponer" | "ok" | "retirar"
     let qty: Int
-    let sku: String
 }
 
 extension ShelfZoneProduct: Identifiable {
-    var id: String { sku + action }
+    var id: String { imageName + action }
 }
 
 struct ShelfZone: Decodable {
@@ -24,20 +58,9 @@ extension ShelfZone: Identifiable {
     var id: String { zone }
 }
 
-struct ShelfTopAction: Decodable {
-    let type: String      // "subir" | "reponer" | "retirar" | "revisar"
-    let text: String
-    let priority: String  // "alta" | "media" | "baja"
-}
-
-extension ShelfTopAction: Identifiable {
-    var id: String { text }
-}
-
 struct ShelfAnalysisResult: Decodable {
-    let overallStatus: String   // "critico" | "atencion" | "bueno"
+    let overallStatus: String  // "critico" | "atencion" | "bueno"
     let shelfZones: [ShelfZone]
-    let topActions: [ShelfTopAction]
     let estimatedRestock: Int
 }
 
@@ -52,45 +75,85 @@ final class ShelfAnalysisService {
     }
 
     func analyzeShelf(imageData: Data, store: Store, inventory: [TruckInventoryItem]) async throws -> ShelfAnalysisResult {
-        guard !apiKey.isEmpty else { return mockResult(for: store) }
+        guard !apiKey.isEmpty else { return mockResult() }
 
         let base64 = imageData.base64EncodedString()
-        let skus = inventory.map(\.product.sku).joined(separator: ", ")
-        let availableStr = inventory.map { "\($0.product.name): \($0.available) pzs" }.joined(separator: " | ")
+
+        // Catálogo completo de productos con su imageName exacto
+        let catalog = ShelfProduct.allCases
+            .map { "  - \($0.displayName) → imageName: \"\($0.rawValue)\"" }
+            .joined(separator: "\n")
+
+        // Qué hay disponible en el camión (cruzado con el catálogo)
+        let truckStr = inventory
+            .map { "\($0.product.name): \($0.available) pzs" }
+            .joined(separator: " | ")
 
         let userPrompt = """
         Analiza la foto del anaquel de la tienda "\(store.name)".
-        Camión disponible: \(availableStr)
-        Más vendidos: \(store.bestSellers.joined(separator: ", "))
-        Baja rotación: \(store.lowRotationProducts.joined(separator: ", "))
-        SKUs válidos: \(skus)
 
-        Responde SOLO con JSON válido sin markdown:
+        CATÁLOGO DE PRODUCTOS BIMBO (usa el imageName EXACTO en tu respuesta):
+        \(catalog)
+
+        INVENTARIO DISPONIBLE EN CAMIÓN: \(truckStr)
+        MÁS VENDIDOS EN ESTA TIENDA: \(store.bestSellers.joined(separator: ", "))
+        BAJA ROTACIÓN: \(store.lowRotationProducts.joined(separator: ", "))
+
+        Observa la foto: detecta los espacios vacíos o con poco producto en el anaquel.
+        Recomienda qué productos del catálogo colocar en cada nivel para optimizar ventas.
+
+        Responde SOLO con JSON válido, sin markdown, sin texto extra:
         {
           "overallStatus": "critico"|"atencion"|"bueno",
           "shelfZones": [
-            {"zone":"top","label":"Nivel alto","recommendation":"urgente"|"reponer"|"ok","products":[{"name":"...","action":"reponer"|"ok"|"retirar","qty":5,"sku":"..."}]},
-            {"zone":"eye","label":"Nivel vista","recommendation":"urgente"|"reponer"|"ok","products":[...]},
-            {"zone":"bottom","label":"Nivel bajo","recommendation":"urgente"|"reponer"|"ok","products":[...]}
-          ],
-          "topActions": [
-            {"type":"subir"|"reponer"|"retirar"|"revisar","text":"acción breve máx 5 palabras","priority":"alta"|"media"|"baja"}
+            {
+              "zone": "top",
+              "label": "Nivel alto",
+              "recommendation": "urgente"|"reponer"|"ok",
+              "products": [
+                {"name": "Pan Blanco", "imageName": "PanBlanco", "action": "reponer"|"ok"|"retirar", "qty": 6}
+              ]
+            },
+            {
+              "zone": "eye",
+              "label": "Nivel vista",
+              "recommendation": "urgente"|"reponer"|"ok",
+              "products": [...]
+            },
+            {
+              "zone": "bottom",
+              "label": "Nivel bajo",
+              "recommendation": "urgente"|"reponer"|"ok",
+              "products": [...]
+            }
           ],
           "estimatedRestock": 14
         }
-        Máximo 2 productos por zona. Máximo 3 acciones. Usa solo los SKUs proporcionados.
+
+        Reglas:
+        - Usa SOLO los imageName del catálogo proporcionado, escritos exactamente igual
+        - Máximo 3 productos por zona
+        - qty debe ser entre 1 y 12
+        - Prioriza los más vendidos en nivel vista (eye)
+        - Si el anaquel se ve bien en una zona, usa recommendation "ok" y products vacío []
         """
 
         let body: [String: Any] = [
             "model": "meta-llama/llama-4-scout-17b-16e-instruct",
             "messages": [
-                ["role": "system", "content": "Eres un asesor de anaquel Bimbo. Responde SOLO con JSON válido, sin texto adicional, sin markdown."],
-                ["role": "user", "content": [
-                    ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64)"]],
-                    ["type": "text", "text": userPrompt]
-                ]]
+                [
+                    "role": "system",
+                    "content": "Eres un asesor de anaquel Bimbo experto. Responde SOLO con JSON válido, sin texto adicional, sin markdown."
+                ],
+                [
+                    "role": "user",
+                    "content": [
+                        ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64)"]],
+                        ["type": "text", "text": userPrompt]
+                    ]
+                ]
             ],
-            "max_tokens": 800,
+            "max_tokens": 900,
             "temperature": 0.2
         ]
 
@@ -129,27 +192,28 @@ final class ShelfAnalysisService {
         return text
     }
 
-    // Mock para cuando no hay API key configurada
-    func mockResult(for store: Store) -> ShelfAnalysisResult {
+    func mockResult() -> ShelfAnalysisResult {
         ShelfAnalysisResult(
             overallStatus: "atencion",
             shelfZones: [
                 ShelfZone(zone: "top", label: "Nivel alto", recommendation: "ok",
-                          products: [ShelfZoneProduct(name: "Pan Blanco", action: "ok", qty: 0, sku: "PAN-BLANCO")]),
+                          products: [
+                            ShelfZoneProduct(name: "Pan Blanco", imageName: "PanBlanco", action: "ok", qty: 0),
+                            ShelfZoneProduct(name: "Pan Tostado", imageName: "PanTostado", action: "ok", qty: 0)
+                          ]),
                 ShelfZone(zone: "eye", label: "Nivel vista", recommendation: "urgente",
                           products: [
-                            ShelfZoneProduct(name: "Medias Noches", action: "reponer", qty: 8, sku: "MEDIAS-NOCHES"),
-                            ShelfZoneProduct(name: "Gansito", action: "reponer", qty: 4, sku: "GANSITO")
+                            ShelfZoneProduct(name: "Medias Noches", imageName: "MediasNoches", action: "reponer", qty: 8),
+                            ShelfZoneProduct(name: "Gansito", imageName: "Gansito", action: "reponer", qty: 4),
+                            ShelfZoneProduct(name: "Bimbollos", imageName: "Bimbollos", action: "reponer", qty: 6)
                           ]),
                 ShelfZone(zone: "bottom", label: "Nivel bajo", recommendation: "reponer",
-                          products: [ShelfZoneProduct(name: "Takis", action: "reponer", qty: 6, sku: "TAKIS")])
+                          products: [
+                            ShelfZoneProduct(name: "Canelitas", imageName: "Canelitas", action: "reponer", qty: 5),
+                            ShelfZoneProduct(name: "Pingüinos", imageName: "Pinguinos", action: "reponer", qty: 4)
+                          ])
             ],
-            topActions: [
-                ShelfTopAction(type: "reponer", text: "Surtir Medias Noches nivel vista", priority: "alta"),
-                ShelfTopAction(type: "subir", text: "Subir Takis a nivel mano", priority: "media"),
-                ShelfTopAction(type: "revisar", text: "Verificar fechas Pan Blanco", priority: "baja")
-            ],
-            estimatedRestock: 18
+            estimatedRestock: 27
         )
     }
 }
