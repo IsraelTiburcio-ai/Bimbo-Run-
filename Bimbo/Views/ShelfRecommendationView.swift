@@ -13,9 +13,14 @@ struct ShelfRecommendationView: View {
         ScrollView {
             VStack(spacing: 14) {
                 statusBanner
+                photoFindingsCard
                 voiceCard
-                shelfDiagram
-                restockBadge
+                if result.isShelfPhoto == false || result.shelfZones.isEmpty {
+                    invalidPhotoCard
+                } else {
+                    shelfDiagram
+                    restockBadge
+                }
                 if let retry = onRetry {
                     Button { retry() } label: {
                         Label("Nueva foto", systemImage: "camera.fill")
@@ -82,6 +87,44 @@ struct ShelfRecommendationView: View {
         }
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var photoFindingsCard: some View {
+        let findings = result.photoFindings ?? []
+        let detected = result.detectedProducts ?? []
+        guard !findings.isEmpty || !detected.isEmpty else { return AnyView(EmptyView()) }
+        return AnyView(
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Lo que la IA vio en la foto", systemImage: "eye.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AppTheme.deepBlue)
+                ForEach(findings.prefix(5), id: \.self) { finding in
+                    Label(finding, systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                if !detected.isEmpty {
+                    Text("Detectado: \(detected.prefix(6).joined(separator: ", "))")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.deepBlue)
+                }
+            }
+            .padding(14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        )
+    }
+
+    private var invalidPhotoCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Foto no válida para anaquel", systemImage: "camera.metering.unknown")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(AppTheme.bimboRed)
+            Text("La IA no detectó un anaquel útil. Toma otra foto donde se vean niveles, huecos y productos de frente.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .background(AppTheme.bimboRed.opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     // MARK: - Shelf Diagram (visual, niveles dinámicos)
@@ -163,6 +206,10 @@ struct ShelfRecommendationView: View {
         switch result.overallStatus {
         case "critico":  return .red
         case "atencion": return AppTheme.warning
+<<<<<<< HEAD
+=======
+        case "foto_invalida": return AppTheme.bimboRed
+>>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
         default:         return AppTheme.success
         }
     }
@@ -171,6 +218,10 @@ struct ShelfRecommendationView: View {
         switch result.overallStatus {
         case "critico":  return "exclamationmark.triangle.fill"
         case "atencion": return "exclamationmark.circle.fill"
+<<<<<<< HEAD
+=======
+        case "foto_invalida": return "camera.metering.unknown"
+>>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
         default:         return "checkmark.circle.fill"
         }
     }
@@ -179,6 +230,10 @@ struct ShelfRecommendationView: View {
         switch result.overallStatus {
         case "critico":  return "Anaquel crítico"
         case "atencion": return "Requiere atención"
+<<<<<<< HEAD
+=======
+        case "foto_invalida": return "Necesita otra foto"
+>>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
         default:         return "Anaquel en buen estado"
         }
     }

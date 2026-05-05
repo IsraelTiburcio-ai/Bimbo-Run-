@@ -7,8 +7,9 @@ final class VoiceService: NSObject {
     static let shared = VoiceService()
 
     // MARK: - Estado observable
-    var isPlaying  = false
-    var isLoading  = false
+    var isPlaying       = false
+    var isLoading       = false
+    var lastErrorMessage: String?
     var isEnabled: Bool = {
         let stored = UserDefaults.standard.object(forKey: "bimbo.voiceEnabled")
         return stored == nil ? true : UserDefaults.standard.bool(forKey: "bimbo.voiceEnabled")
@@ -16,9 +17,11 @@ final class VoiceService: NSObject {
 
     // MARK: - Privado
     private var player: AVAudioPlayer?
+    private let synthesizer = AVSpeechSynthesizer()
 
     private override init() {
         super.init()
+        synthesizer.delegate = self
         configureAudioSession()
     }
 
@@ -28,7 +31,10 @@ final class VoiceService: NSObject {
         guard isEnabled, !text.isEmpty else { return }
         if isPlaying { stop() }
 
-        await MainActor.run { isLoading = true }
+        await MainActor.run {
+            isLoading = true
+            lastErrorMessage = nil
+        }
 
         do {
             let data = try await fetchAudio(text)
@@ -41,13 +47,15 @@ final class VoiceService: NSObject {
                     player?.play()
                     isPlaying = true
                 } catch {
-                    isPlaying = false
+                    speakLocally(text, reason: "No se pudo reproducir audio de ElevenLabs. Usando voz local.")
                 }
             }
         } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             await MainActor.run {
                 isLoading = false
                 isPlaying = false
+                speakLocally(text, reason: message)
             }
         }
     }
@@ -55,6 +63,7 @@ final class VoiceService: NSObject {
     func stop() {
         player?.stop()
         player = nil
+        synthesizer.stopSpeaking(at: .immediate)
         isPlaying = false
     }
 
@@ -67,39 +76,58 @@ final class VoiceService: NSObject {
     // MARK: - ElevenLabs
 
     private func fetchAudio(_ text: String) async throws -> Data {
+        guard ElevenLabsConfig.isConfigured else {
+            throw VoiceError.missingAPIKey
+        }
+
         let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(ElevenLabsConfig.voiceId)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(ElevenLabsConfig.apiKey, forHTTPHeaderField: "xi-api-key")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
 
         let body: [String: Any] = [
             "text": text,
             "model_id": ElevenLabsConfig.model,
-            "voice_settings": [
-                "stability": 0.5,
-                "similarity_boost": 0.75
-            ]
+            "voice_settings": ["stability": 0.5, "similarity_boost": 0.75]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw VoiceError.apiError
+        guard let http = response as? HTTPURLResponse else {
+            throw VoiceError.apiError(statusCode: -1, message: "Respuesta sin HTTPURLResponse")
+        }
+        guard http.statusCode == 200 else {
+            let bodyText = String(data: data, encoding: .utf8) ?? "Sin detalle del servidor"
+            throw VoiceError.apiError(statusCode: http.statusCode, message: String(bodyText.prefix(180)))
         }
         return data
+    }
+
+    // MARK: - Voz local (fallback AVSpeechSynthesizer)
+
+    @MainActor
+    private func speakLocally(_ text: String, reason: String) {
+        lastErrorMessage = reason
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "es-MX") ?? AVSpeechSynthesisVoice(language: "es-ES")
+        utterance.rate = 0.48
+        utterance.pitchMultiplier = 1.0
+        synthesizer.speak(utterance)
+        isPlaying = true
     }
 
     // MARK: - Audio Session
 
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: .duckOthers)
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
         try? session.setActive(true)
     }
 }
 
-// MARK: - AVAudioPlayerDelegate
+// MARK: - Delegates
 
 extension VoiceService: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
@@ -107,18 +135,37 @@ extension VoiceService: AVAudioPlayerDelegate {
     }
 }
 
+extension VoiceService: AVSpeechSynthesizerDelegate {
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in self.isPlaying = false }
+    }
+}
+
 // MARK: - Error
 
 enum VoiceError: Error {
-    case apiError
+    case missingAPIKey
+    case apiError(statusCode: Int, message: String)
     case disabled
+}
+
+extension VoiceError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .missingAPIKey:
+            return "ElevenLabs no configurado. Se usará voz local del dispositivo."
+        case .apiError(let code, let msg):
+            return "ElevenLabs error \(code): \(msg). Se usará voz local."
+        case .disabled:
+            return "Voz desactivada."
+        }
+    }
 }
 
 // MARK: - Componentes SwiftUI reutilizables
 
 import SwiftUI
 
-/// Botón play/stop genérico para cualquier texto
 struct VoicePlayButton: View {
     let text: String
     var label: String = "Escuchar"
@@ -149,7 +196,6 @@ struct VoicePlayButton: View {
     }
 }
 
-/// Toggle on/off de voz con persistencia
 struct VoiceToggleRow: View {
     private var voice: VoiceService { VoiceService.shared }
 

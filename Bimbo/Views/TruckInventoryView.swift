@@ -5,21 +5,19 @@ struct TruckInventoryView: View {
     @State private var didScanTicket = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header
-                    scanTicketButton
-                    summaryGrid
-                    inventorySection
-                    lowStockSection
-                    pendingStoresSummary
-                }
-                .padding(18)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                scanTicketButton
+                summaryGrid
+                inventorySection
+                lowStockSection
+                pendingStoresSummary
             }
-            .background(pageBackground)
-            .navigationTitle("Camión")
+            .padding(18)
         }
+        .background(pageBackground)
+        .navigationTitle("Camión")
     }
 
     private var pageBackground: some View {

@@ -1,5 +1,8 @@
 import Foundation
 
+// MARK: - Groq configuration
+// The API key is loaded from Info.plist (via xcconfig) or from environment.
+
 enum GroqConfig {
     static var apiKey: String {
         if let key = Bundle.main.infoDictionary?["GROQ_API_KEY"] as? String,

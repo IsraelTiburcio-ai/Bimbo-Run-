@@ -13,7 +13,9 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            TruckInventoryView(viewModel: viewModel)
+            NavigationStack {
+                TruckInventoryView(viewModel: viewModel)
+            }
                 .tabItem {
                     Label("Camión", systemImage: "box.truck.fill")
                 }
