@@ -4,6 +4,7 @@ struct StoreDetailView: View {
     @Bindable var viewModel: RoutePerfectaViewModel
     var storeId: UUID
     @Binding var path: [AppRoute]
+    @State private var showShelfCamera = false
 
     private var store: Store? {
         viewModel.store(for: storeId)
@@ -22,6 +23,10 @@ struct StoreDetailView: View {
                         viewModel.startVisit(storeId: store.id)
                         path.append(.scan(store.id))
                     }
+
+                    PrimaryButton(title: "Fotografiar Anaquel", systemImage: "camera.viewfinder") {
+                        showShelfCamera = true
+                    }
                 }
                 .padding(18)
             } else {
@@ -30,6 +35,11 @@ struct StoreDetailView: View {
         }
         .background(AppTheme.subtleGradient.ignoresSafeArea())
         .navigationTitle(store?.name ?? "Detalle")
+        .sheet(isPresented: $showShelfCamera) {
+            if let store {
+                ShelfCameraView(store: store, inventory: viewModel.truckInventory)
+            }
+        }
     }
 
     private func hero(_ store: Store) -> some View {
