@@ -24,9 +24,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		86D2CF722FA98AA600792B42 /* Bimbo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bimbo.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		86D2CF7F2FA98AA700792B42 /* BimboTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BimboTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		86D2CF892FA98AA700792B42 /* BimboUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BimboUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		86D2CF722FA98AA600792B42 /* Bimbo Run.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Bimbo Run.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		86D2CF7F2FA98AA700792B42 /* Bimbo RunTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Bimbo RunTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		86D2CF892FA98AA700792B42 /* Bimbo RunUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Bimbo RunUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2C3D4E5F60718293A4B5C6 /* GroqConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = GroqConfig.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -87,9 +87,9 @@
 		86D2CF732FA98AA600792B42 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				86D2CF722FA98AA600792B42 /* Bimbo.app */,
-				86D2CF7F2FA98AA700792B42 /* BimboTests.xctest */,
-				86D2CF892FA98AA700792B42 /* BimboUITests.xctest */,
+				86D2CF722FA98AA600792B42 /* Bimbo Run.app */,
+				86D2CF7F2FA98AA700792B42 /* Bimbo RunTests.xctest */,
+				86D2CF892FA98AA700792B42 /* Bimbo RunUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -97,9 +97,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		86D2CF712FA98AA600792B42 /* Bimbo */ = {
+		86D2CF712FA98AA600792B42 /* Bimbo Run */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 86D2CF932FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo" */;
+			buildConfigurationList = 86D2CF932FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo Run" */;
 			buildPhases = (
 				86D2CF6E2FA98AA600792B42 /* Sources */,
 				86D2CF6F2FA98AA600792B42 /* Frameworks */,
@@ -112,16 +112,16 @@
 			fileSystemSynchronizedGroups = (
 				86D2CF742FA98AA600792B42 /* Bimbo */,
 			);
-			name = Bimbo;
+			name = "Bimbo Run";
 			packageProductDependencies = (
 			);
 			productName = Bimbo;
-			productReference = 86D2CF722FA98AA600792B42 /* Bimbo.app */;
+			productReference = 86D2CF722FA98AA600792B42 /* Bimbo Run.app */;
 			productType = "com.apple.product-type.application";
 		};
-		86D2CF7E2FA98AA700792B42 /* BimboTests */ = {
+		86D2CF7E2FA98AA700792B42 /* Bimbo RunTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 86D2CF962FA98AA700792B42 /* Build configuration list for PBXNativeTarget "BimboTests" */;
+			buildConfigurationList = 86D2CF962FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo RunTests" */;
 			buildPhases = (
 				86D2CF7B2FA98AA700792B42 /* Sources */,
 				86D2CF7C2FA98AA700792B42 /* Frameworks */,
@@ -135,16 +135,16 @@
 			fileSystemSynchronizedGroups = (
 				86D2CF822FA98AA700792B42 /* BimboTests */,
 			);
-			name = BimboTests;
+			name = "Bimbo RunTests";
 			packageProductDependencies = (
 			);
 			productName = BimboTests;
-			productReference = 86D2CF7F2FA98AA700792B42 /* BimboTests.xctest */;
+			productReference = 86D2CF7F2FA98AA700792B42 /* Bimbo RunTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		86D2CF882FA98AA700792B42 /* BimboUITests */ = {
+		86D2CF882FA98AA700792B42 /* Bimbo RunUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 86D2CF992FA98AA700792B42 /* Build configuration list for PBXNativeTarget "BimboUITests" */;
+			buildConfigurationList = 86D2CF992FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo RunUITests" */;
 			buildPhases = (
 				86D2CF852FA98AA700792B42 /* Sources */,
 				86D2CF862FA98AA700792B42 /* Frameworks */,
@@ -158,11 +158,11 @@
 			fileSystemSynchronizedGroups = (
 				86D2CF8C2FA98AA700792B42 /* BimboUITests */,
 			);
-			name = BimboUITests;
+			name = "Bimbo RunUITests";
 			packageProductDependencies = (
 			);
 			productName = BimboUITests;
-			productReference = 86D2CF892FA98AA700792B42 /* BimboUITests.xctest */;
+			productReference = 86D2CF892FA98AA700792B42 /* Bimbo RunUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -188,7 +188,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 86D2CF6D2FA98AA600792B42 /* Build configuration list for PBXProject "Bimbo" */;
+			buildConfigurationList = 86D2CF6D2FA98AA600792B42 /* Build configuration list for PBXProject "Bimbo Run" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -202,9 +202,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				86D2CF712FA98AA600792B42 /* Bimbo */,
-				86D2CF7E2FA98AA700792B42 /* BimboTests */,
-				86D2CF882FA98AA700792B42 /* BimboUITests */,
+				86D2CF712FA98AA600792B42 /* Bimbo Run */,
+				86D2CF7E2FA98AA700792B42 /* Bimbo RunTests */,
+				86D2CF882FA98AA700792B42 /* Bimbo RunUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -260,12 +260,12 @@
 /* Begin PBXTargetDependency section */
 		86D2CF812FA98AA700792B42 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 86D2CF712FA98AA600792B42 /* Bimbo */;
+			target = 86D2CF712FA98AA600792B42 /* Bimbo Run */;
 			targetProxy = 86D2CF802FA98AA700792B42 /* PBXContainerItemProxy */;
 		};
 		86D2CF8B2FA98AA700792B42 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 86D2CF712FA98AA600792B42 /* Bimbo */;
+			target = 86D2CF712FA98AA600792B42 /* Bimbo Run */;
 			targetProxy = 86D2CF8A2FA98AA700792B42 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -479,7 +479,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bimbo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Bimbo";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bimbo Run.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Bimbo Run";
 			};
 			name = Debug;
 		};
@@ -500,7 +500,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bimbo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Bimbo";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Bimbo Run.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Bimbo Run";
 			};
 			name = Release;
 		};
@@ -545,7 +545,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		86D2CF6D2FA98AA600792B42 /* Build configuration list for PBXProject "Bimbo" */ = {
+		86D2CF6D2FA98AA600792B42 /* Build configuration list for PBXProject "Bimbo Run" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86D2CF912FA98AA700792B42 /* Debug */,
@@ -554,7 +554,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		86D2CF932FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo" */ = {
+		86D2CF932FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo Run" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86D2CF942FA98AA700792B42 /* Debug */,
@@ -563,7 +563,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		86D2CF962FA98AA700792B42 /* Build configuration list for PBXNativeTarget "BimboTests" */ = {
+		86D2CF962FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo RunTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86D2CF972FA98AA700792B42 /* Debug */,
@@ -572,7 +572,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		86D2CF992FA98AA700792B42 /* Build configuration list for PBXNativeTarget "BimboUITests" */ = {
+		86D2CF992FA98AA700792B42 /* Build configuration list for PBXNativeTarget "Bimbo RunUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				86D2CF9A2FA98AA700792B42 /* Debug */,
