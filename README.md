@@ -21,3 +21,4 @@ GROQ_API_KEY = tu_api_key
 ```
 
 Despues enlaza ese xcconfig en Xcode y expone `GROQ_API_KEY` en `Info.plist` como `$(GROQ_API_KEY)`.
+# Bimbo-Run-
