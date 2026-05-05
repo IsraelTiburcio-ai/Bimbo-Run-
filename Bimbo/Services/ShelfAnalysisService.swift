@@ -7,13 +7,29 @@ enum ShelfProduct: String, CaseIterable {
     case bigote       = "Bigote"
     case bimbollos    = "Bimbollos"
     case bimbuñuelos  = "Bimbuñuelos"
+    case barrasMultigrano = "BarrasMultigrano"
+    case branFrut     = "BranFrut"
+    case ceroCero     = "PanCeroCero"
+    case conchas      = "Conchas"
+    case donasAzucaradas = "DonasAzucaradas"
+    case donasChocolate = "DonasChocolate"
     case gansito      = "Gansito"
+    case hamburguesa  = "PanHamburguesa"
+    case hotDog       = "PanHotDog"
     case integral     = "Integral"
+    case littleBites  = "LittleBites"
+    case mantechox    = "Mantechox"
     case mediasNoches = "MediasNoches"
+    case miniMantecadas = "MiniMantecadas"
+    case miniPanTostado = "MiniPanTostado"
+    case multigrano   = "PanMultigrano"
+    case panquechox   = "Panquechox"
     case panTostado   = "PanTostado"
+    case panTostadoBrioche = "PanTostadoBrioche"
     case panBlanco    = "PanBlanco"
     case panMolido    = "PanMolido"
     case pinguinos    = "Pinguinos"
+    case rolesCanela  = "RolesCanela"
     case canelitas    = "Canelitas"
 
     var displayName: String {
@@ -22,13 +38,29 @@ enum ShelfProduct: String, CaseIterable {
         case .bigote:       return "Bigotes"
         case .bimbollos:    return "Bimbollos"
         case .bimbuñuelos:  return "Bimbuñuelos"
+        case .barrasMultigrano: return "Barras Multigrano"
+        case .branFrut:     return "Barritas Bran Frut"
+        case .ceroCero:     return "Pan Cero Cero"
+        case .conchas:      return "Conchas de Vainilla"
+        case .donasAzucaradas: return "Donas Azucaradas"
+        case .donasChocolate: return "Donas con Chocolate"
         case .gansito:      return "Gansito"
+        case .hamburguesa:  return "Pan Hamburguesa"
+        case .hotDog:       return "Pan Hot Dog"
         case .integral:     return "Pan Integral"
+        case .littleBites:  return "Little Bites"
+        case .mantechox:    return "Mantechox Hershey's"
         case .mediasNoches: return "Medias Noches"
+        case .miniMantecadas: return "Mini Mantecadas"
+        case .miniPanTostado: return "Mini Pan Tostado"
+        case .multigrano:   return "Pan Multigrano"
+        case .panquechox:   return "Panquechox"
         case .panTostado:   return "Pan Tostado"
+        case .panTostadoBrioche: return "Pan Tostado Brioche"
         case .panBlanco:    return "Pan Blanco"
         case .panMolido:    return "Pan Molido"
         case .pinguinos:    return "Pingüinos"
+        case .rolesCanela:  return "Roles con Canela"
         case .canelitas:    return "Canelitas"
         }
     }
@@ -62,6 +94,9 @@ extension ShelfZone: Identifiable {
 
 struct ShelfAnalysisResult: Decodable {
     let overallStatus: String   // "critico" | "atencion" | "bueno"
+    let isShelfPhoto: Bool?
+    let photoFindings: [String]?
+    let detectedProducts: [String]?
     let shelfZones: [ShelfZone]
     let estimatedRestock: Int
     let voiceSummary: String?   // texto listo para TTS con ElevenLabs
@@ -78,69 +113,85 @@ final class ShelfAnalysisService {
     }
 
     func analyzeShelf(imageData: Data, store: Store, inventory: [TruckInventoryItem]) async throws -> ShelfAnalysisResult {
-        guard !apiKey.isEmpty else { return mockResult() }
+        guard !apiKey.isEmpty else { throw AIServiceError.missingAPIKey }
 
         let base64 = imageData.base64EncodedString()
 
         let catalog = ShelfProduct.allCases
-            .map { "  - \($0.displayName) → imageName: \"\($0.rawValue)\"" }
+            .map { "  - \($0.displayName) | imageName: \"\($0.rawValue)\"" }
             .joined(separator: "\n")
 
         let truckStr = inventory
-            .map { "\($0.product.name): \($0.available) pzs" }
-            .joined(separator: " | ")
+            .map { "- \($0.product.name): \($0.available) pzs disponibles" }
+            .joined(separator: "\n")
 
         let userPrompt = """
-        Eres un asesor de anaquel Bimbo experto. Analiza la foto del anaquel de "\(store.name)".
+        Analiza EXCLUSIVAMENTE la imagen adjunta. No uses respuestas genéricas.
 
-        CATÁLOGO DE PRODUCTOS (usa el imageName EXACTO):
+        OBJETIVO:
+        Determinar si la imagen muestra un anaquel, estante o exhibidor de tienda con productos Bimbo o espacios para productos Bimbo.
+
+        CONTEXTO DE TIENDA:
+        - Tienda: \(store.name)
+        - Tipo: \(store.type.rawValue)
+        - Mas vendidos historicos: \(store.bestSellers.joined(separator: ", "))
+        - Baja rotacion historica: \(store.lowRotationProducts.joined(separator: ", "))
+
+        INVENTARIO DEL CAMION:
+        \(truckStr)
+
+        CATALOGO VISUAL PERMITIDO:
         \(catalog)
 
-        INVENTARIO CAMIÓN: \(truckStr)
-        MÁS VENDIDOS: \(store.bestSellers.joined(separator: ", "))
-        BAJA ROTACIÓN: \(store.lowRotationProducts.joined(separator: ", "))
-
         INSTRUCCIONES:
-        1. Detecta cuántos niveles físicos tiene el anaquel en la foto.
-        2. Para cada nivel existente, recomienda qué productos van ahí y en qué cantidad.
-        3. Si detectas espacio vacío suficiente para un nivel extra, agrégalo con isNewLevel:true.
-        4. Si un nivel está muy vacío y no justifica existir, márcalo con shouldRemove:true.
-        5. Criterios de acomodo: productos más caros/populares a nivel vista, pan grande abajo, snacks arriba.
-        6. Genera un voiceSummary conciso en español (3-4 oraciones) para leer en voz alta al repartidor.
+        1. Primero decide si la foto SI muestra un anaquel/estante/exhibidor util para surtido. Si no lo muestra, responde isShelfPhoto:false, shelfZones:[], estimatedRestock:0 y explica en photoFindings que se debe tomar otra foto.
+        2. No inventes niveles ni productos si la imagen no permite verlos.
+        3. Si la foto SI muestra anaquel, describe hallazgos visuales concretos en photoFindings: numero de niveles visibles, huecos, zonas vacias, productos visibles, mala iluminacion u obstrucciones.
+        4. Para cada nivel visible crea una zona. Usa SOLO productos del catalogo y SOLO si tiene sentido por huecos, historial e inventario.
+        5. La recomendacion debe cambiar segun lo que se ve en la foto: si la foto tiene pocos huecos, recomienda poco; si esta vacia, recomienda mas; si no es anaquel, no recomiendes productos.
+        6. No copies nombres/cantidades de ejemplos. No uses siempre los mismos productos. Personaliza con tienda, inventario, hallazgos visuales y productos detectados.
+        7. qty debe ser 0 cuando action sea "ok"; entre 1 y 12 cuando action sea "reponer" o "retirar".
+        8. voiceSummary debe mencionar lo que se vio en la foto, no solo historial.
+        9. Inventario disponible NO significa que debas recomendar ese producto. Usalo solo como restriccion de disponibilidad.
+        10. Evita recomendar Pan Blanco o Medias Noches por defecto. Solo recomiendalos si la foto muestra hueco de pan de caja/bolsa compatible, el historial lo respalda o aparecen como producto visible.
+        11. Balancea por categoria segun tienda: pan de caja, bolleria, pan dulce, barras, tostados y snacks. En tienditas con compras de impulso prioriza barras/pan dulce si la foto tiene espacio pequeno; en minisuper prioriza bolleria/panes para comida si hay huecos amplios.
 
-        Responde SOLO con JSON válido, sin markdown:
+        Responde SOLO JSON valido con esta forma exacta:
         {
-          "overallStatus": "critico"|"atencion"|"bueno",
+          "overallStatus": "critico|atencion|bueno|foto_invalida",
+          "isShelfPhoto": true,
+          "photoFindings": ["hallazgo visual concreto 1", "hallazgo visual concreto 2"],
+          "detectedProducts": ["producto visible o categoria visible"],
           "shelfZones": [
             {
               "zone": "level_1",
-              "label": "Nivel 1 - Alto",
-              "recommendation": "urgente"|"reponer"|"ok",
+              "label": "Nivel 1 - Alto/Vista/Bajo segun foto",
+              "recommendation": "urgente|reponer|ok",
               "isNewLevel": false,
               "shouldRemove": false,
               "products": [
-                {"name": "Pan Blanco", "imageName": "PanBlanco", "action": "reponer"|"ok"|"retirar", "qty": 6}
+                {"name": "nombre del catalogo", "imageName": "imageName exacto", "action": "reponer|ok|retirar", "qty": 1}
               ]
             }
           ],
-          "estimatedRestock": 14,
-          "voiceSummary": "El anaquel de Abarrotes Lupita requiere atención urgente. El nivel vista está prácticamente vacío y necesitas surtir Medias Noches y Gansito. Se recomienda colocar un total de 14 piezas para optimizar el espacio disponible."
+          "estimatedRestock": 0,
+          "voiceSummary": "resumen breve para el repartidor"
         }
 
         Reglas:
-        - Usa SOLO los imageName del catálogo, escritos exactamente igual
-        - Entre 2 y 5 niveles según lo que veas en la foto
-        - Máximo 3 productos por nivel
-        - qty entre 1 y 12
-        - voiceSummary: máximo 60 palabras, directo al repartidor, en español
+        - Si no ves anaquel: no recomiendes productos.
+        - Si la foto esta borrosa u obstruida: overallStatus "foto_invalida".
+        - Si recomiendas reponer, respeta inventario disponible del camion.
+        - Maximo 5 niveles y maximo 3 productos por nivel.
+        - voiceSummary maximo 55 palabras.
         """
 
         let body: [String: Any] = [
-            "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+            "model": GroqConfig.defaultVisionModel,
             "messages": [
                 [
                     "role": "system",
-                    "content": "Eres un asesor de anaquel Bimbo experto. Responde SOLO con JSON válido, sin texto adicional, sin markdown."
+                    "content": "Eres un auditor visual de anaqueles Bimbo. Debes basarte en la imagen adjunta. Si la foto no muestra anaquel, dilo y no recomiendes productos. Responde SOLO JSON valido."
                 ],
                 [
                     "role": "user",
@@ -150,8 +201,9 @@ final class ShelfAnalysisService {
                     ]
                 ]
             ],
-            "max_tokens": 1000,
-            "temperature": 0.2
+            "response_format": ["type": "json_object"],
+            "max_completion_tokens": 1200,
+            "temperature": 0.05
         ]
 
         var request = URLRequest(url: endpoint)
@@ -160,9 +212,20 @@ final class ShelfAnalysisService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw AIServiceError.networkError(underlying: error)
+        }
+
+        guard let http = response as? HTTPURLResponse else {
             throw AIServiceError.invalidResponse
+        }
+        guard http.statusCode == 200 else {
+            let bodyText = String(data: data, encoding: .utf8) ?? "Sin detalle del servidor"
+            throw AIServiceError.httpError(statusCode: http.statusCode, message: String(bodyText.prefix(180)))
         }
 
         let groqResponse = try JSONDecoder().decode(GroqChatResponse.self, from: data)
@@ -171,7 +234,11 @@ final class ShelfAnalysisService {
             throw AIServiceError.emptyChoices
         }
 
-        return try JSONDecoder().decode(ShelfAnalysisResult.self, from: jsonData)
+        let result = try JSONDecoder().decode(ShelfAnalysisResult.self, from: jsonData)
+        guard result.isShelfPhoto != false || result.shelfZones.isEmpty else {
+            return result
+        }
+        return result
     }
 
     // MARK: - Helpers
@@ -192,6 +259,12 @@ final class ShelfAnalysisService {
     func mockResult() -> ShelfAnalysisResult {
         ShelfAnalysisResult(
             overallStatus: "atencion",
+            isShelfPhoto: true,
+            photoFindings: [
+                "Resultado local de respaldo, no generado por vision.",
+                "Usa una foto real del anaquel para personalizar niveles y productos."
+            ],
+            detectedProducts: ["Pan Blanco", "Medias Noches", "Gansito"],
             shelfZones: [
                 ShelfZone(zone: "level_1", label: "Nivel 1 - Alto", recommendation: "ok",
                           products: [

@@ -259,18 +259,43 @@ struct RouteView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            Label(viewModel.isGeneratingDaySummary ? "Groq esta preparando un resumen corto" : "Resumen generado por Groq antes de leerlo", systemImage: viewModel.isGeneratingDaySummary ? "sparkles" : "brain.head.profile")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.deepBlue)
+
+            Label(ElevenLabsConfig.isConfigured ? "ElevenLabs configurado" : "ElevenLabs sin API key: se usara voz local", systemImage: ElevenLabsConfig.isConfigured ? "checkmark.circle.fill" : "speaker.wave.1.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ElevenLabsConfig.isConfigured ? AppTheme.success : AppTheme.warning)
+
+            if let error = viewModel.daySummaryErrorMessage {
+                Text("Groq: \(error)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.warning)
+            }
+
+            if let error = voice.lastErrorMessage {
+                Text(error)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.warning)
+            }
+
             Button {
                 if voice.isPlaying { voice.stop() }
-                else { Task { await voice.speak(viewModel.daySummaryText) } }
+                else {
+                    Task {
+                        let summary = await viewModel.generateDayVoiceSummary()
+                        await voice.speak(summary)
+                    }
+                }
             } label: {
                 HStack(spacing: 8) {
-                    if voice.isLoading {
+                    if voice.isLoading || viewModel.isGeneratingDaySummary {
                         ProgressView().tint(.white).scaleEffect(0.8)
                     } else {
                         Image(systemName: voice.isPlaying ? "stop.circle.fill" : "play.circle.fill")
                             .font(.system(size: 18, weight: .bold))
                     }
-                    Text(voice.isLoading ? "Preparando voz..." : voice.isPlaying ? "Detener resumen" : "Escuchar resumen del día")
+                    Text(viewModel.isGeneratingDaySummary ? "Generando resumen..." : voice.isLoading ? "Preparando voz..." : voice.isPlaying ? "Detener resumen" : "Escuchar resumen del día")
                         .font(.headline.weight(.semibold))
                 }
                 .frame(maxWidth: .infinity)
@@ -278,7 +303,7 @@ struct RouteView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(voice.isPlaying ? .red : AppTheme.deepBlue)
-            .disabled(voice.isLoading || !voice.isEnabled)
+            .disabled(voice.isLoading || viewModel.isGeneratingDaySummary || !voice.isEnabled)
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))

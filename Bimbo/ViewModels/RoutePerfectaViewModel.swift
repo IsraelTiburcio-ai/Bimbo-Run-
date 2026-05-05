@@ -27,6 +27,8 @@ final class RoutePerfectaViewModel {
     var scannedProducts: [ScannedProduct]
     var scanAlerts: [String]
     var lastScannedProduct: ScannedProduct?
+    var daySummaryErrorMessage: String?
+    var isGeneratingDaySummary = false
 
     // AI
     var latestScanResult: ScanResult?
@@ -34,6 +36,7 @@ final class RoutePerfectaViewModel {
     var isGeneratingAI = false
 
     private let aiService: AIRecommendationService = GroqAIRecommendationService()
+    private let routeSummaryService = RouteSummaryService()
     private let navigationService = NavigationAppService()
 
     init() {
@@ -63,15 +66,13 @@ final class RoutePerfectaViewModel {
 
     var daySummaryText: String {
         let totalKm = routeStops.reduce(0.0) { $0 + $1.distanceKm }
-        let storeList = routeStoreStops
-            .sorted { $0.order < $1.order }
-            .compactMap { store(for: $0.storeId)?.name }
-            .joined(separator: ", ")
-        let productList = truckInventory
-            .map { "\($0.available) piezas de \($0.product.name)" }
-            .joined(separator: ", ")
         let firstStop = nextStore?.name ?? "sin tienda asignada"
-        return "Buenos días. Hoy tienes \(pendingCount) tiendas que visitar: \(storeList). Tu camión tiene \(totalAvailableUnits) piezas disponibles: \(productList). La ruta de hoy cubre \(String(format: "%.1f", totalKm)) kilómetros en total. Tu primera parada es \(firstStop). ¡Mucho éxito en tu ruta!"
+        let topItems = truckInventory
+            .sorted { $0.available > $1.available }
+            .prefix(3)
+            .map(\.product.name)
+            .joined(separator: ", ")
+        return "Buenos dias. Tienes \(pendingCount) tiendas pendientes y \(String(format: "%.1f", totalKm)) kilometros estimados. Primera parada: \(firstStop). Enfocate en revisar anaquel, caducidades y surtir solo lo necesario. Inventario fuerte: \(topItems)."
     }
 
     var routeProgress: Double {
@@ -293,6 +294,32 @@ final class RoutePerfectaViewModel {
         mapsStatusMessage = navigationService.open(app: app, latitude: stop.latitude, longitude: stop.longitude, name: stop.name)
     }
 
+    @MainActor
+    func generateDayVoiceSummary() async -> String {
+        isGeneratingDaySummary = true
+        daySummaryErrorMessage = nil
+        do {
+            let pendingStores = routeStoreStops
+                .sorted { $0.order < $1.order }
+                .filter { $0.status != .completed }
+                .compactMap { store(for: $0.storeId) }
+            let summary = try await routeSummaryService.generateSummary(
+                pendingStores: pendingStores,
+                nextStore: nextStore,
+                routeStops: routeStops,
+                inventory: truckInventory,
+                avoidedWaste: avoidedWaste,
+                savedMinutes: savedMinutes
+            )
+            isGeneratingDaySummary = false
+            return summary
+        } catch {
+            daySummaryErrorMessage = error.localizedDescription
+            isGeneratingDaySummary = false
+            return daySummaryText
+        }
+    }
+
     func resetScan(storeId: UUID?) {
         scannedProducts = []
         scanAlerts = []
@@ -395,8 +422,28 @@ final class RoutePerfectaViewModel {
 
 extension Product {
     static let mockProducts: [Product] = [
-        Product(sku: "PAN-BLANCO", name: "Pan Blanco", category: "Pan", purchasePrice: 38, salePrice: 48, symbolName: "shippingbox.fill"),
-        Product(sku: "MEDIAS-NOCHES", name: "Medias Noches", category: "Pan", purchasePrice: 42, salePrice: 56, symbolName: "takeoutbag.and.cup.and.straw.fill"),
+        Product(sku: "PAN-BLANCO", name: "Pan Bimbo Natural 620g", category: "Pan de caja", purchasePrice: 38, salePrice: 50, symbolName: "shippingbox.fill"),
+        Product(sku: "PAN-INTEGRAL", name: "Pan Integral 620g", category: "Pan de caja", purchasePrice: 43, salePrice: 56, symbolName: "leaf.fill"),
+        Product(sku: "PAN-CERO-CERO", name: "Pan Cero Cero", category: "Pan de caja", purchasePrice: 48, salePrice: 62, symbolName: "0.circle.fill"),
+        Product(sku: "PAN-ARTESANO", name: "Pan Artesano", category: "Pan de caja", purchasePrice: 52, salePrice: 66, symbolName: "seal.fill"),
+        Product(sku: "PAN-MULTIGRANO", name: "Pan Multigrano", category: "Pan de caja", purchasePrice: 54, salePrice: 68, symbolName: "circle.grid.3x3.fill"),
+        Product(sku: "MEDIAS-NOCHES", name: "Medias Noches Bimbo", category: "Pan especial", purchasePrice: 20, salePrice: 28, symbolName: "takeoutbag.and.cup.and.straw.fill"),
+        Product(sku: "BIMBOLLOS", name: "Bimbollos", category: "Pan especial", purchasePrice: 12, salePrice: 17, symbolName: "bag.fill"),
+        Product(sku: "PAN-HOT-DOG", name: "Pan Hot Dog", category: "Pan especial", purchasePrice: 18, salePrice: 24, symbolName: "rectangle.fill"),
+        Product(sku: "PAN-HAMBURGUESA", name: "Pan Hamburguesa", category: "Pan especial", purchasePrice: 22, salePrice: 29, symbolName: "circle.fill"),
+        Product(sku: "PANQUECHOX", name: "Panquechox", category: "Bolleria", purchasePrice: 19, salePrice: 26, symbolName: "birthday.cake.fill"),
+        Product(sku: "ROLES-CANELA", name: "Roles con Canela", category: "Bolleria", purchasePrice: 16, salePrice: 21, symbolName: "circle.grid.2x2.fill"),
+        Product(sku: "MANTECHOX", name: "Mantechox Hershey's", category: "Bolleria", purchasePrice: 18, salePrice: 24, symbolName: "heart.fill"),
+        Product(sku: "BARRAS-MULTIGRANO", name: "Barras Multigrano", category: "Barras", purchasePrice: 11, salePrice: 16, symbolName: "rectangle.fill"),
+        Product(sku: "DONAS-CHOCOLATE", name: "Donas con Chocolate", category: "Pan dulce", purchasePrice: 13, salePrice: 19, symbolName: "circle.circle.fill"),
+        Product(sku: "DONAS-AZUCARADAS", name: "Donas Azucaradas", category: "Pan dulce", purchasePrice: 11, salePrice: 16, symbolName: "circle"),
+        Product(sku: "CONCHAS", name: "Conchas de Vainilla", category: "Pan dulce", purchasePrice: 13, salePrice: 19, symbolName: "cloud.fill"),
+        Product(sku: "BIMBUÑUELOS", name: "Bimbuñuelos", category: "Pan dulce", purchasePrice: 13, salePrice: 19, symbolName: "sparkles"),
+        Product(sku: "LITTLE-BITES", name: "Little Bites", category: "Pan dulce", purchasePrice: 17, salePrice: 23, symbolName: "square.grid.2x2.fill"),
+        Product(sku: "MINI-MANTECADAS", name: "Mini Mantecadas", category: "Pan dulce", purchasePrice: 15, salePrice: 21, symbolName: "birthday.cake.fill"),
+        Product(sku: "BRAN-FRUT", name: "Barritas Bran Frut", category: "Barras", purchasePrice: 10, salePrice: 15, symbolName: "capsule.fill"),
+        Product(sku: "PAN-TOSTADO-BRIOCHE", name: "Pan Tostado Brioche", category: "Tostados", purchasePrice: 15, salePrice: 21, symbolName: "square.fill"),
+        Product(sku: "MINI-PAN-TOSTADO", name: "Mini Pan Tostado", category: "Tostados", purchasePrice: 15, salePrice: 21, symbolName: "square.on.square.fill"),
         Product(sku: "GANSITO", name: "Gansito", category: "Pastelito", purchasePrice: 16, salePrice: 23, symbolName: "birthday.cake.fill"),
         Product(sku: "TAKIS", name: "Takis", category: "Snack", purchasePrice: 14, salePrice: 22, symbolName: "flame.fill"),
         Product(sku: "BIM-NITO-001", name: "Nito", category: "Pastelito", purchasePrice: 15, salePrice: 22, symbolName: "seal.fill")
@@ -405,19 +452,54 @@ extension Product {
 
 extension TruckInventoryItem {
     static func mockInventory(products: [Product]) -> [TruckInventoryItem] {
-        [
-            TruckInventoryItem(product: products[0], available: 34, reservedSuggested: 18, returned: 2, lowStockThreshold: 8),
-            TruckInventoryItem(product: products[1], available: 20, reservedSuggested: 16, returned: 0, lowStockThreshold: 6),
-            TruckInventoryItem(product: products[2], available: 9, reservedSuggested: 5, returned: 1, lowStockThreshold: 5),
-            TruckInventoryItem(product: products[3], available: 12, reservedSuggested: 18, returned: 0, lowStockThreshold: 6),
-            TruckInventoryItem(product: products[4], available: 16, reservedSuggested: 6, returned: 1, lowStockThreshold: 5)
+        let quantities: [String: Int] = [
+            "PAN-BLANCO": 80,
+            "PAN-INTEGRAL": 60,
+            "PAN-CERO-CERO": 40,
+            "PAN-ARTESANO": 30,
+            "PAN-MULTIGRANO": 25,
+            "MEDIAS-NOCHES": 50,
+            "BIMBOLLOS": 60,
+            "PAN-HOT-DOG": 45,
+            "PAN-HAMBURGUESA": 40,
+            "PANQUECHOX": 75,
+            "ROLES-CANELA": 60,
+            "MANTECHOX": 50,
+            "BARRAS-MULTIGRANO": 80,
+            "DONAS-CHOCOLATE": 50,
+            "DONAS-AZUCARADAS": 50,
+            "CONCHAS": 60,
+            "BIMBUÑUELOS": 50,
+            "LITTLE-BITES": 70,
+            "MINI-MANTECADAS": 70,
+            "BRAN-FRUT": 100,
+            "PAN-TOSTADO-BRIOCHE": 80,
+            "MINI-PAN-TOSTADO": 80,
+            "GANSITO": 36,
+            "TAKIS": 24,
+            "BIM-NITO-001": 42
         ]
+
+        return products.map { product in
+            let available = quantities[product.sku] ?? 20
+            return TruckInventoryItem(
+                product: product,
+                available: available,
+                reservedSuggested: min(max(available / 4, 4), 18),
+                returned: product.sku == "PAN-BLANCO" ? 2 : product.sku == "GANSITO" ? 1 : 0,
+                lowStockThreshold: max(6, available / 10)
+            )
+        }
     }
 }
 
 extension Store {
     static func mockStores(products: [Product]) -> [Store] {
-        [
+        func product(_ sku: String) -> Product {
+            products.first { $0.sku == sku } ?? products[0]
+        }
+
+        return [
             Store(
                 name: "Abarrotes Lupita",
                 clientId: "CLI-20418",
@@ -432,13 +514,14 @@ extension Store {
                 lastVisit: "Ayer, 9:20 AM",
                 lastReturn: "3 piezas Pan Blanco",
                 estimatedBudget: 2800,
-                bestSellers: ["Medias Noches", "Pan Blanco", "Takis"],
-                lowRotationProducts: ["Pan Integral", "Gansito"],
+                bestSellers: ["Medias Noches Bimbo", "Barras Multigrano", "Donas con Chocolate"],
+                lowRotationProducts: ["Pan Multigrano", "Gansito"],
                 lastDeliveredProducts: [
-                    OrderItem(product: products[0], quantity: 12, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: products[1], quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
+                    OrderItem(product: product("MEDIAS-NOCHES"), quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("BARRAS-MULTIGRANO"), quantity: 14, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("DONAS-CHOCOLATE"), quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
                 ],
-                visitHistory: ["Ayer: alta venta de Medias Noches", "Semana pasada: retirar Pan Blanco proximo a caducar"]
+                visitHistory: ["Ayer: alta venta de barras y pan dulce", "Semana pasada: evitar exceso de pan de caja"]
             ),
             Store(
                 name: "Mini Super El Sol",
@@ -454,11 +537,12 @@ extension Store {
                 lastVisit: "Hace 3 dias",
                 lastReturn: "1 pieza Gansito",
                 estimatedBudget: 2100,
-                bestSellers: ["Pan Blanco", "Nito"],
-                lowRotationProducts: ["Gansito"],
+                bestSellers: ["Bimbollos", "Pan Hamburguesa", "Little Bites"],
+                lowRotationProducts: ["Pan Cero Cero", "Gansito"],
                 lastDeliveredProducts: [
-                    OrderItem(product: products[0], quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: products[2], quantity: 6, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
+                    OrderItem(product: product("BIMBOLLOS"), quantity: 12, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("LITTLE-BITES"), quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("PAN-HAMBURGUESA"), quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
                 ],
                 visitHistory: ["Hace 3 dias: baja rotacion de Gansito", "Semana 15: revisar caducidad de pan"]
             ),
@@ -476,11 +560,12 @@ extension Store {
                 lastVisit: "Lunes pasado",
                 lastReturn: "Sin devolucion",
                 estimatedBudget: 1600,
-                bestSellers: ["Takis", "Nito"],
-                lowRotationProducts: ["Pan Integral"],
+                bestSellers: ["Barritas Bran Frut", "Roles con Canela", "Nito"],
+                lowRotationProducts: ["Pan Integral", "Pan Multigrano"],
                 lastDeliveredProducts: [
-                    OrderItem(product: products[3], quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: products[4], quantity: 6, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
+                    OrderItem(product: product("BRAN-FRUT"), quantity: 16, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("ROLES-CANELA"), quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("BIM-NITO-001"), quantity: 6, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
                 ],
                 visitHistory: ["Lunes: buena venta de snacks", "Recomendacion: evitar exceso de pan integral"]
             )

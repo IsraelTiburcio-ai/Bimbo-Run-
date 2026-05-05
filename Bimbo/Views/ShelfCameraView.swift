@@ -181,7 +181,7 @@ struct ShelfCameraView: View {
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "No se pudo analizar. Intenta de nuevo."
+                    errorMessage = error.localizedDescription
                     isAnalyzing = false
                 }
             }

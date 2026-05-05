@@ -55,9 +55,12 @@ final class GroqAIRecommendationService: AIRecommendationService {
         - No inventes SKUs ni nombres de productos
         - Cantidades razonables: entre 1 y 15 piezas por producto
         - productsToRemove: prioriza productos caducados o proximos a caducar detectados por QR
-        - productsToReplenish: productos con alta rotacion o frente incompleto
-        - suggestedProducts: productos adicionales segun el tipo de tienda
+        - productsToReplenish: productos con alta rotacion, hueco probable o continuidad con el ultimo pedido
+        - suggestedProducts: productos adicionales segun tipo de tienda, presupuesto, margen, impulso y contexto
         - inventoryAlerts: solo si hay stock insuficiente para lo recomendado
+        - Inventario alto NO significa recomendar automaticamente. El inventario solo limita disponibilidad.
+        - Evita repetir siempre Pan Bimbo Natural o Medias Noches. Recomiendalos solo si el contexto los justifica.
+        - Diversifica entre pan de caja, bolleria, pan dulce, barras y tostados cuando la tienda y presupuesto lo permitan.
         - Notas en espanol, breves y utiles para el vendedor
 
         Responde SOLO con JSON valido usando exactamente esta estructura:
@@ -78,7 +81,7 @@ final class GroqAIRecommendationService: AIRecommendationService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let body = GroqChatRequest(
-            model: "llama-3.3-70b-versatile",
+            model: GroqConfig.defaultChatModel,
             messages: [
                 GroqMessage(role: "system", content: "Eres un asistente de ventas de campo para Bimbo. Responde SOLO con JSON valido, sin texto adicional, sin markdown."),
                 GroqMessage(role: "user", content: prompt)
@@ -104,7 +107,8 @@ final class GroqAIRecommendationService: AIRecommendationService {
             throw AIServiceError.invalidResponse
         }
         guard http.statusCode == 200 else {
-            throw AIServiceError.httpError(statusCode: http.statusCode)
+            let bodyText = String(data: data, encoding: .utf8) ?? "Sin detalle del servidor"
+            throw AIServiceError.httpError(statusCode: http.statusCode, message: String(bodyText.prefix(180)))
         }
 
         let groqResponse: GroqChatResponse
