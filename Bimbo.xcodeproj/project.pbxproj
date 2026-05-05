@@ -27,6 +27,7 @@
 		86D2CF722FA98AA600792B42 /* Bimbo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bimbo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		86D2CF7F2FA98AA700792B42 /* BimboTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BimboTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		86D2CF892FA98AA700792B42 /* BimboUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BimboUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA2C3D4E5F60718293A4B5C6 /* GroqConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = GroqConfig.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +76,7 @@
 		86D2CF692FA98AA600792B42 = {
 			isa = PBXGroup;
 			children = (
+				AA2C3D4E5F60718293A4B5C6 /* GroqConfig.xcconfig */,
 				86D2CF742FA98AA600792B42 /* Bimbo */,
 				86D2CF822FA98AA700792B42 /* BimboTests */,
 				86D2CF8C2FA98AA700792B42 /* BimboUITests */,
@@ -390,6 +392,7 @@
 		};
 		86D2CF942FA98AA700792B42 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA2C3D4E5F60718293A4B5C6 /* GroqConfig.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -425,6 +428,7 @@
 		};
 		86D2CF952FA98AA700792B42 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA2C3D4E5F60718293A4B5C6 /* GroqConfig.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

@@ -1,4 +1,5 @@
 GroqConfig.xcconfig
+.env
 .claude/
 DerivedData/
 *.xcuserstate
