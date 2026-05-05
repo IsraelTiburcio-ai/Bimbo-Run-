@@ -1,16 +1,19 @@
 import SwiftUI
 
-// MARK: - Main Recommendation View
+// MARK: - Main View
 
 struct ShelfRecommendationView: View {
     let result: ShelfAnalysisResult
     let storeName: String
     var onRetry: (() -> Void)?
 
+    private var voice: VoiceService { VoiceService.shared }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
                 statusBanner
+                voiceCard
                 shelfDiagram
                 restockBadge
                 if let retry = onRetry {
@@ -58,30 +61,68 @@ struct ShelfRecommendationView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    // MARK: - Shelf Diagram (visual)
+    // MARK: - Voice Card
+
+    private var voiceCard: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Label("Escuchar recomendaciones", systemImage: "ear.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AppTheme.deepBlue)
+                Spacer()
+                VoiceToggleRow()
+            }
+            if let summary = result.voiceSummary {
+                VoicePlayButton(text: summary, label: "Escuchar recomendaciones")
+            } else {
+                Text("Resumen de voz no disponible")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    // MARK: - Shelf Diagram (visual, niveles dinámicos)
 
     private var shelfDiagram: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Acomodo recomendado", systemImage: "rectangle.split.3x3")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(AppTheme.deepBlue)
+            HStack {
+                Label("Acomodo recomendado", systemImage: "rectangle.split.3x3")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AppTheme.deepBlue)
+                Spacer()
+                // Contador de niveles
+                let newCount = result.shelfZones.filter { $0.isNewLevel == true }.count
+                if newCount > 0 {
+                    Label("+\(newCount) nivel\(newCount > 1 ? "es" : "")", systemImage: "plus.rectangle.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.success)
+                }
+            }
 
             VStack(spacing: 0) {
-                ForEach(orderedZones) { zone in
+                ForEach(Array(orderedZones.enumerated()), id: \.element.id) { index, zone in
                     ShelfZoneRow(zone: zone)
-                    if zone.id != orderedZones.last?.id {
+                    if index < orderedZones.count - 1 {
                         // Tablón separador entre niveles
                         Rectangle()
-                            .fill(Color(white: 0.72))
-                            .frame(height: 6)
-                            .shadow(color: .black.opacity(0.15), radius: 2, y: 2)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(white: 0.60), Color(white: 0.78), Color(white: 0.60)],
+                                    startPoint: .leading, endPoint: .trailing
+                                )
+                            )
+                            .frame(height: 7)
+                            .shadow(color: .black.opacity(0.18), radius: 2, y: 2)
                     }
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color(white: 0.75), lineWidth: 1.5)
+                    .stroke(Color(white: 0.72), lineWidth: 1.5)
             )
             .shadow(color: .black.opacity(0.07), radius: 6, y: 3)
         }
@@ -109,9 +150,12 @@ struct ShelfRecommendationView: View {
     // MARK: - Helpers
 
     private var orderedZones: [ShelfZone] {
-        let order = ["top", "eye", "bottom"]
-        return result.shelfZones.sorted {
-            (order.firstIndex(of: $0.zone) ?? 99) < (order.firstIndex(of: $1.zone) ?? 99)
+        // Niveles a quitar al final, nuevos al final también
+        result.shelfZones.sorted {
+            let removeA = $0.shouldRemove == true ? 1 : 0
+            let removeB = $1.shouldRemove == true ? 1 : 0
+            if removeA != removeB { return removeA < removeB }
+            return $0.zone < $1.zone
         }
     }
 
@@ -147,26 +191,34 @@ struct ShelfZoneRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header de la zona
+            // Header
             HStack(spacing: 6) {
-                Image(systemName: zoneIcon)
+                Image(systemName: "square.3.layers.3d")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(zoneColor)
                 Text(zone.label.uppercased())
                     .font(.system(size: 10, weight: .black))
                     .foregroundStyle(.secondary)
                 Spacer()
-                recommendationChip
+                levelBadges
             }
             .padding(.horizontal, 14)
             .padding(.top, 10)
             .padding(.bottom, 8)
 
-            // Productos como tarjetas con imagen
-            if zone.products.isEmpty {
+            // Productos
+            if zone.shouldRemove == true {
                 HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(AppTheme.success)
+                    Image(systemName: "trash.fill").foregroundStyle(.red)
+                    Text("Quitar este nivel")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.red)
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 12)
+            } else if zone.products.isEmpty {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(AppTheme.success)
                     Text("Nivel completo")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -185,29 +237,42 @@ struct ShelfZoneRow: View {
                 }
             }
         }
-        .background(zoneColor.opacity(0.05))
+        .background(backgroundStyle)
         .overlay(alignment: .leading) {
             Rectangle()
                 .fill(zoneColor)
                 .frame(width: 4)
         }
-    }
-
-    private var zoneColor: Color {
-        switch zone.recommendation {
-        case "urgente": return .red
-        case "reponer": return AppTheme.warning
-        default:        return AppTheme.success
+        // Borde superior punteado si es nivel nuevo
+        .overlay(alignment: .top) {
+            if zone.isNewLevel == true {
+                Rectangle()
+                    .stroke(AppTheme.success, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .frame(height: 2)
+            }
         }
     }
 
-    private var zoneIcon: String {
-        switch zone.zone {
-        case "top":    return "arrow.up"
-        case "eye":    return "eye.fill"
-        case "bottom": return "arrow.down"
-        default:       return "square"
+    @ViewBuilder
+    private var levelBadges: some View {
+        HStack(spacing: 4) {
+            if zone.isNewLevel == true {
+                Text("+ NUEVO NIVEL")
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundStyle(AppTheme.success)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(AppTheme.success.opacity(0.14), in: Capsule())
+            }
+            if zone.shouldRemove == true {
+                Text("QUITAR")
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(Color.red.opacity(0.14), in: Capsule())
+            }
+            recommendationChip
         }
+        .padding(.trailing, 10)
     }
 
     private var recommendationChip: some View {
@@ -221,9 +286,24 @@ struct ShelfZoneRow: View {
         return Text(label)
             .font(.system(size: 9, weight: .black))
             .foregroundStyle(color)
-            .padding(.horizontal, 8).padding(.vertical, 3)
+            .padding(.horizontal, 7).padding(.vertical, 3)
             .background(color.opacity(0.14), in: Capsule())
-            .padding(.trailing, 10)
+    }
+
+    private var zoneColor: Color {
+        if zone.isNewLevel == true { return AppTheme.success }
+        if zone.shouldRemove == true { return .red }
+        switch zone.recommendation {
+        case "urgente": return .red
+        case "reponer": return AppTheme.warning
+        default:        return AppTheme.success
+        }
+    }
+
+    private var backgroundStyle: Color {
+        if zone.isNewLevel == true { return AppTheme.success.opacity(0.04) }
+        if zone.shouldRemove == true { return Color.red.opacity(0.04) }
+        return zoneColor.opacity(0.05)
     }
 }
 
@@ -235,7 +315,6 @@ struct ProductImageCard: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(spacing: 6) {
-                // Imagen del producto desde Assets
                 ZStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(Color(white: 0.96))
@@ -253,7 +332,7 @@ struct ProductImageCard: View {
                             .foregroundStyle(actionColor.opacity(0.5))
                     }
 
-                    // Overlay para "retirar"
+                    // Overlay retirar
                     if product.action == "retirar" {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color.red.opacity(0.35))
@@ -276,7 +355,7 @@ struct ProductImageCard: View {
                     .frame(width: 78)
             }
 
-            // Badge de cantidad (solo si hay que reponer)
+            // Badge cantidad
             if product.qty > 0 && product.action != "ok" {
                 ZStack {
                     Circle()
