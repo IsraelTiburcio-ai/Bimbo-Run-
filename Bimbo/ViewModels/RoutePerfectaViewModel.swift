@@ -1,8 +1,10 @@
 import Foundation
+import MapKit
 import Observation
 
 enum AppRoute: Hashable {
     case addStore
+    case inventory
     case storeDetail(UUID)
     case scan(UUID?)
     case recommendation(UUID?)
@@ -22,6 +24,9 @@ final class RoutePerfectaViewModel {
     var removedProductsCount: Int
     var lastConfirmationMessage: String?
     var mapsStatusMessage: String?
+    var scannedProducts: [ScannedProduct]
+    var scanAlerts: [String]
+    var lastScannedProduct: ScannedProduct?
 
     // AI
     var latestScanResult: ScanResult?
@@ -29,6 +34,7 @@ final class RoutePerfectaViewModel {
     var isGeneratingAI = false
 
     private let aiService: AIRecommendationService = GroqAIRecommendationService()
+    private let navigationService = NavigationAppService()
 
     init() {
         let products = Product.mockProducts
@@ -43,6 +49,8 @@ final class RoutePerfectaViewModel {
         self.avoidedWaste = 9
         self.estimatedSales = 1850
         self.removedProductsCount = 4
+        self.scannedProducts = []
+        self.scanAlerts = []
     }
 
     var completedCount: Int {
@@ -54,17 +62,26 @@ final class RoutePerfectaViewModel {
     }
 
     var routeProgress: Double {
-        guard !routeStops.isEmpty else { return 0 }
-        return Double(routeStops.filter { $0.status == .completed }.count) / Double(routeStops.count)
+        let storeStops = routeStoreStops
+        guard !storeStops.isEmpty else { return 0 }
+        return Double(storeStops.filter { $0.status == .completed }.count) / Double(storeStops.count)
+    }
+
+    var routeStoreStops: [RouteStop] {
+        routeStops.filter { $0.storeId != nil }
     }
 
     var nextPendingStop: RouteStop? {
-        routeStops.sorted { $0.order < $1.order }.first { $0.status != .completed }
+        routeStoreStops.sorted { $0.order < $1.order }.first { $0.status != .completed }
     }
 
     var nextStore: Store? {
         guard let nextPendingStop else { return nil }
         return store(for: nextPendingStop.storeId)
+    }
+
+    var routeCoordinates: [CLLocationCoordinate2D] {
+        routeStops.sorted { $0.order < $1.order }.map(\.coordinate)
     }
 
     var lowInventoryItems: [TruckInventoryItem] {
@@ -102,7 +119,7 @@ final class RoutePerfectaViewModel {
         }
         updateStop(storeId) { stop in
             if stop.status != .completed {
-                stop.status = .inProgress
+                stop.status = .current
             }
         }
     }
@@ -145,7 +162,13 @@ final class RoutePerfectaViewModel {
         routeStops.append(
             RouteStop(
                 storeId: store.id,
-                order: routeStops.count + 1,
+                order: routeStops.count,
+                name: store.name,
+                address: store.address,
+                latitude: 19.4354 + Double(routeStops.count) * 0.006,
+                longitude: -99.1490 - Double(routeStops.count) * 0.004,
+                estimatedMinutes: 14,
+                distanceKm: 2.4,
                 eta: "Pendiente",
                 distance: "-- km",
                 status: .pending,
@@ -160,7 +183,19 @@ final class RoutePerfectaViewModel {
         let gansito = product(sku: "GANSITO")
         let takis = product(sku: "TAKIS")
 
-        let remove = [
+        let scanBasedRemove = scannedProducts
+            .filter { $0.expirationRisk != .safe }
+            .compactMap { scanned -> OrderItem? in
+                guard let product = Product.mockProducts.first(where: { $0.sku == scanned.sku }) else { return nil }
+                return orderItem(
+                    product: product,
+                    quantity: max(scanned.quantity, 1),
+                    action: .remove,
+                    note: scanned.expirationRisk == .expired ? "Caducado en QR lote \(scanned.batch)" : "Proximo a caducar lote \(scanned.batch)"
+                )
+            }
+
+        let remove = scanBasedRemove + [
             orderItem(product: panBlanco, quantity: 2, action: .remove, note: "Proximo a caducar"),
             orderItem(product: gansito, quantity: 1, action: .remove, note: "Baja rotacion detectada")
         ]
@@ -204,15 +239,15 @@ final class RoutePerfectaViewModel {
             estimatedSales += Double(quantityToDiscount) * item.product.salePrice
         }
 
-        let removedUnits = mockScanResult(storeId: storeId).productsToRemove.reduce(0) { $0 + $1.quantity }
+        let removedItems = latestScanResult?.productsToRemove ?? mockScanResult(storeId: storeId).productsToRemove
+        let removedUnits = removedItems.reduce(0) { $0 + $1.quantity }
         removedProductsCount += removedUnits
         avoidedWaste += removedUnits
 
-        if let index = truckInventory.firstIndex(where: { $0.product.sku == "PAN-BLANCO" }) {
-            truckInventory[index].returned += 2
-        }
-        if let index = truckInventory.firstIndex(where: { $0.product.sku == "GANSITO" }) {
-            truckInventory[index].returned += 1
+        for item in removedItems {
+            if let index = truckInventory.firstIndex(where: { $0.product.sku == item.product.sku }) {
+                truckInventory[index].returned += item.quantity
+            }
         }
 
         if let storeId {
@@ -229,14 +264,55 @@ final class RoutePerfectaViewModel {
                 stop.status = .completed
                 stop.routeNote = "Tienda completada. Siguiente parada lista."
             }
+            markNextStoreAsCurrent()
         }
 
         savedMinutes += 18
         lastConfirmationMessage = "Pedido confirmado. Inventario actualizado y tienda completada."
     }
 
-    func openMapsMock() {
-        mapsStatusMessage = "Maps/Waze se conectara aqui en la version real."
+    @MainActor
+    func openNavigation(app: NavigationApp, stop: RouteStop?) {
+        guard let stop else {
+            mapsStatusMessage = "No hay una tienda pendiente para navegar."
+            return
+        }
+        mapsStatusMessage = navigationService.open(app: app, latitude: stop.latitude, longitude: stop.longitude, name: stop.name)
+    }
+
+    func resetScan(storeId: UUID?) {
+        scannedProducts = []
+        scanAlerts = []
+        lastScannedProduct = nil
+        latestScanResult = nil
+        aiErrorMessage = nil
+        startVisit(storeId: storeId)
+    }
+
+    @discardableResult
+    func processScannedPayload(_ payload: String) -> ScannedProduct? {
+        guard !scannedProducts.contains(where: { $0.rawPayload == payload }) else {
+            return nil
+        }
+
+        do {
+            let product = try ScannedProduct.parse(payload)
+            scannedProducts.insert(product, at: 0)
+            lastScannedProduct = product
+
+            switch product.expirationRisk {
+            case .expired:
+                scanAlerts.insert("\(product.name) lote \(product.batch) esta caducado. Retiralo del anaquel.", at: 0)
+            case .nearExpiration:
+                scanAlerts.insert("\(product.name) lote \(product.batch) caduca pronto. Revisa rotacion o retiro.", at: 0)
+            case .safe:
+                break
+            }
+            return product
+        } catch {
+            scanAlerts.insert("QR invalido o incompleto. Usa el formato de producto Bimbo.", at: 0)
+            return nil
+        }
     }
 
     @MainActor
@@ -248,7 +324,7 @@ final class RoutePerfectaViewModel {
         isGeneratingAI = true
         aiErrorMessage = nil
         do {
-            latestScanResult = try await aiService.generateRecommendation(store: store, inventory: truckInventory)
+            latestScanResult = try await aiService.generateRecommendation(store: store, inventory: truckInventory, scannedProducts: scannedProducts)
         } catch {
             aiErrorMessage = error.localizedDescription
             latestScanResult = mockScanResult(storeId: storeId)
@@ -285,6 +361,23 @@ final class RoutePerfectaViewModel {
         guard let index = routeStops.firstIndex(where: { $0.storeId == storeId }) else { return }
         update(&routeStops[index])
     }
+
+    private func markNextStoreAsCurrent() {
+        guard let nextIndex = routeStops
+            .sorted(by: { $0.order < $1.order })
+            .first(where: { $0.storeId != nil && $0.status == .pending })
+            .flatMap({ next in routeStops.firstIndex(where: { $0.id == next.id }) }) else {
+            return
+        }
+        routeStops[nextIndex].status = .current
+        if let storeId = routeStops[nextIndex].storeId {
+            updateStore(storeId) { store in
+                if store.status == .pending {
+                    store.aiHint = "Siguiente destino"
+                }
+            }
+        }
+    }
 }
 
 extension Product {
@@ -293,7 +386,7 @@ extension Product {
         Product(sku: "MEDIAS-NOCHES", name: "Medias Noches", category: "Pan", purchasePrice: 42, salePrice: 56, symbolName: "takeoutbag.and.cup.and.straw.fill"),
         Product(sku: "GANSITO", name: "Gansito", category: "Pastelito", purchasePrice: 16, salePrice: 23, symbolName: "birthday.cake.fill"),
         Product(sku: "TAKIS", name: "Takis", category: "Snack", purchasePrice: 14, salePrice: 22, symbolName: "flame.fill"),
-        Product(sku: "NITO", name: "Nito", category: "Pastelito", purchasePrice: 15, salePrice: 22, symbolName: "seal.fill")
+        Product(sku: "BIM-NITO-001", name: "Nito", category: "Pastelito", purchasePrice: 15, salePrice: 22, symbolName: "seal.fill")
     ]
 }
 
@@ -384,15 +477,62 @@ extension Store {
 
 extension RouteStop {
     static func mockStops(for stores: [Store]) -> [RouteStop] {
-        stores.enumerated().map { index, store in
-            RouteStop(
+        let depotLatitude = 19.4327
+        let depotLongitude = -99.1332
+        let coordinates: [(Double, Double, Int, Double)] = [
+            (19.4361, -99.1419, 8, 1.2),
+            (19.4257, -99.1596, 15, 2.8),
+            (19.4146, -99.1464, 20, 4.1)
+        ]
+
+        let start = RouteStop(
+            storeId: nil,
+            order: 0,
+            name: "Deposito Norte",
+            address: "Centro de distribucion",
+            latitude: depotLatitude,
+            longitude: depotLongitude,
+            estimatedMinutes: 0,
+            distanceKm: 0,
+            eta: "Salida",
+            distance: "0 km",
+            status: .depot,
+            routeNote: "Carga inicial del camion"
+        )
+
+        let storeStops = stores.enumerated().map { index, store in
+            let coordinate = coordinates[index]
+            return RouteStop(
                 storeId: store.id,
                 order: index + 1,
+                name: store.name,
+                address: store.address,
+                latitude: coordinate.0,
+                longitude: coordinate.1,
+                estimatedMinutes: coordinate.2,
+                distanceKm: coordinate.3,
                 eta: index == 0 ? "9:20 AM" : index == 1 ? "10:05 AM" : "11:10 AM",
-                distance: index == 0 ? "1.2 km" : index == 1 ? "2.8 km" : "4.1 km",
-                status: store.status,
+                distance: String(format: "%.1f km", coordinate.3),
+                status: store.status == .completed ? .completed : store.status == .inProgress ? .current : .pending,
                 routeNote: index == 0 ? "Dentro del radio de llegada" : "Orden sugerido por tiempo"
             )
         }
+
+        let end = RouteStop(
+            storeId: nil,
+            order: stores.count + 1,
+            name: "Regreso a deposito",
+            address: "Centro de distribucion",
+            latitude: depotLatitude,
+            longitude: depotLongitude,
+            estimatedMinutes: 18,
+            distanceKm: 3.6,
+            eta: "12:10 PM",
+            distance: "3.6 km",
+            status: .depot,
+            routeNote: "Cierre de ruta y devoluciones"
+        )
+
+        return [start] + storeStops + [end]
     }
 }

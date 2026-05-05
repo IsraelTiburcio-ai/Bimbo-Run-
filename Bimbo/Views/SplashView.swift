@@ -67,7 +67,7 @@ struct SplashView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 260)
-                    .scaleEffect(x: -1, y: 1) // flip horizontal para que mire hacia la izquierda
+                    .scaleEffect(x: 1, y: 1) // flip horizontal para que mire hacia la izquierda
                     .position(x: truckX, y: h * 0.768)
 
                 // Barra inferior azul

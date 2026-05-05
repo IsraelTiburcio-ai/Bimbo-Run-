@@ -13,7 +13,7 @@ struct FinalOrderView: View {
         self.viewModel = viewModel
         self.storeId = storeId
         self._path = path
-        let result = viewModel.mockScanResult(storeId: storeId)
+        let result = viewModel.latestScanResult ?? viewModel.mockScanResult(storeId: storeId)
         self._orderItems = State(initialValue: viewModel.buildOrder(from: result))
     }
 

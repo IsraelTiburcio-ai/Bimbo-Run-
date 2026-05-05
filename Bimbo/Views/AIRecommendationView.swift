@@ -17,12 +17,14 @@ struct AIRecommendationView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                groqStatusCard
                 if let errorMsg = viewModel.aiErrorMessage {
                     aiErrorBanner(errorMsg)
                 }
                 if !result.inventoryAlerts.isEmpty {
                     alertCard
                 }
+                scannedContextCard
                 section("Productos a retirar", icon: "exclamationmark.triangle.fill", tint: AppTheme.bimboRed, items: result.productsToRemove)
                 section("Productos a reponer", icon: "shippingbox.fill", tint: AppTheme.electricBlue, items: result.productsToReplenish)
                 section("Sugeridos por inventario", icon: "sparkles", tint: AppTheme.success, items: result.suggestedProducts)
@@ -66,6 +68,23 @@ struct AIRecommendationView: View {
         .background(AppTheme.warning.opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    private var groqStatusCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: GroqConfig.isConfigured ? "checkmark.circle.fill" : "key.slash.fill")
+                .foregroundStyle(GroqConfig.isConfigured ? AppTheme.success : AppTheme.warning)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(GroqConfig.isConfigured ? "Groq conectado" : "Groq sin API key")
+                    .font(.headline.weight(.semibold))
+                Text(GroqConfig.isConfigured ? "La recomendacion intenta usar Groq y cae a local si falla la red." : "Agrega GROQ_API_KEY para recomendaciones reales. Por ahora se muestra recomendacion local para demo.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background((GroqConfig.isConfigured ? AppTheme.success : AppTheme.warning).opacity(0.10), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
     private var alertCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Inventario insuficiente", systemImage: "exclamationmark.triangle.fill")
@@ -80,6 +99,34 @@ struct AIRecommendationView: View {
         .padding(16)
         .background(AppTheme.bimboRed.opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
+
+    private var scannedContextCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Contexto QR usado por Groq", systemImage: "qrcode.viewfinder")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(AppTheme.deepBlue)
+
+            if viewModel.scannedProducts.isEmpty {
+                Text("Sin productos escaneados. La recomendacion usa historial e inventario.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(viewModel.scannedProducts.prefix(4)) { product in
+                    HStack {
+                        Text(product.name)
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text(product.expirationRisk.title)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(product.expirationRisk == .safe ? AppTheme.success : AppTheme.bimboRed)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
 
     private func section(_ title: String, icon: String, tint: Color, items: [OrderItem]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -129,8 +176,13 @@ struct AIRecommendationView: View {
 
     private var actionButtons: some View {
         VStack(spacing: 12) {
-            PrimaryButton(title: "Aceptar recomendacion", systemImage: "checkmark.circle.fill") {
-                path.append(.finalOrder(storeId))
+            PrimaryButton(title: "Aceptar y actualizar inventario", systemImage: "checkmark.circle.fill") {
+                viewModel.confirmOrder(
+                    storeId: storeId,
+                    items: viewModel.buildOrder(from: result),
+                    notes: "Recomendacion IA aceptada sin ajuste manual."
+                )
+                path.removeAll()
             }
             Button {
                 path.append(.finalOrder(storeId))

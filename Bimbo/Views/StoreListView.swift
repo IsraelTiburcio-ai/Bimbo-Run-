@@ -66,6 +66,8 @@ struct StoreListView: View {
         switch route {
         case .addStore:
             AddStoreView(viewModel: viewModel, path: $path)
+        case .inventory:
+            TruckInventoryView(viewModel: viewModel)
         case .storeDetail(let storeId):
             StoreDetailView(viewModel: viewModel, storeId: storeId, path: $path)
         case .scan(let storeId):

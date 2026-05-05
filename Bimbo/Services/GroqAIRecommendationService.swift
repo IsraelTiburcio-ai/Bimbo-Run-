@@ -10,21 +10,29 @@ final class GroqAIRecommendationService: AIRecommendationService {
         self.apiKey = apiKey
     }
 
-    func generateRecommendation(store: Store, inventory: [TruckInventoryItem]) async throws -> ScanResult {
-        let dto = try await callGroq(prompt: buildPrompt(store: store, inventory: inventory))
+    func generateRecommendation(store: Store, inventory: [TruckInventoryItem], scannedProducts: [ScannedProduct]) async throws -> ScanResult {
+        guard !apiKey.isEmpty else {
+            throw AIServiceError.missingAPIKey
+        }
+        let dto = try await callGroq(prompt: buildPrompt(store: store, inventory: inventory, scannedProducts: scannedProducts))
         return map(dto: dto, storeId: store.id, inventory: inventory)
     }
 
     // MARK: - Private
 
-    private func buildPrompt(store: Store, inventory: [TruckInventoryItem]) -> String {
+    private func buildPrompt(store: Store, inventory: [TruckInventoryItem], scannedProducts: [ScannedProduct]) -> String {
         let validSKUs = inventory.map { $0.product.sku }.joined(separator: ", ")
         let inventoryLines = inventory.map {
             "  - SKU: \($0.product.sku) | Nombre: \($0.product.name) | Disponible: \($0.available) pzs | Bajo stock: \($0.isLowStock ? "SI" : "NO")"
         }.joined(separator: "\n")
+        let scannedLines = scannedProducts.isEmpty
+            ? "  - Sin productos escaneados aun."
+            : scannedProducts.map {
+                "  - SKU: \($0.sku) | Nombre: \($0.name) | Lote: \($0.batch) | Caduca: \(ScannedProduct.dateFormatter.string(from: $0.expiresAt)) | Riesgo: \($0.expirationRisk.title) | Cantidad: \($0.quantity)"
+            }.joined(separator: "\n")
 
         return """
-        Analiza el contexto de esta tienda y el inventario del camion. Genera una recomendacion de surtido para el vendedor de campo.
+        Analiza el contexto de esta tienda, el inventario del camion y los productos escaneados en anaquel. Genera una recomendacion de surtido para el vendedor de campo.
 
         TIENDA:
         - Nombre: \(store.name)
@@ -39,11 +47,14 @@ final class GroqAIRecommendationService: AIRecommendationService {
         INVENTARIO DEL CAMION:
         \(inventoryLines)
 
+        PRODUCTOS ESCANEADOS EN TIEMPO REAL:
+        \(scannedLines)
+
         REGLAS:
         - Usa solo los siguientes SKUs: \(validSKUs)
         - No inventes SKUs ni nombres de productos
         - Cantidades razonables: entre 1 y 15 piezas por producto
-        - productsToRemove: productos con baja rotacion o proximo a caducar segun historial
+        - productsToRemove: prioriza productos caducados o proximos a caducar detectados por QR
         - productsToReplenish: productos con alta rotacion o frente incompleto
         - suggestedProducts: productos adicionales segun el tipo de tienda
         - inventoryAlerts: solo si hay stock insuficiente para lo recomendado
