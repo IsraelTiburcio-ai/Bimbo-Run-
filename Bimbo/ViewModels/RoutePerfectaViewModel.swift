@@ -61,6 +61,19 @@ final class RoutePerfectaViewModel {
         stores.filter { $0.status != .completed }.count
     }
 
+    var daySummaryText: String {
+        let totalKm = routeStops.reduce(0.0) { $0 + $1.distanceKm }
+        let storeList = routeStoreStops
+            .sorted { $0.order < $1.order }
+            .compactMap { store(for: $0.storeId)?.name }
+            .joined(separator: ", ")
+        let productList = truckInventory
+            .map { "\($0.available) piezas de \($0.product.name)" }
+            .joined(separator: ", ")
+        let firstStop = nextStore?.name ?? "sin tienda asignada"
+        return "Buenos días. Hoy tienes \(pendingCount) tiendas que visitar: \(storeList). Tu camión tiene \(totalAvailableUnits) piezas disponibles: \(productList). La ruta de hoy cubre \(String(format: "%.1f", totalKm)) kilómetros en total. Tu primera parada es \(firstStop). ¡Mucho éxito en tu ruta!"
+    }
+
     var routeProgress: Double {
         let storeStops = routeStoreStops
         guard !storeStops.isEmpty else { return 0 }

@@ -3,18 +3,18 @@ import Foundation
 // MARK: - Catálogo de imágenes disponibles en Assets
 
 enum ShelfProduct: String, CaseIterable {
-    case artesano      = "Artesano"
-    case bigote        = "Bigote"
-    case bimbollos     = "Bimbollos"
-    case bimbuñuelos   = "Bimbuñuelos"
-    case gansito       = "Gansito"
-    case integral      = "Integral"
-    case mediasNoches  = "MediasNoches"
-    case panTostado    = "PanTostado"
-    case panBlanco     = "PanBlanco"
-    case panMolido     = "PanMolido"
-    case pinguinos     = "Pinguinos"
-    case canelitas     = "Canelitas"
+    case artesano     = "Artesano"
+    case bigote       = "Bigote"
+    case bimbollos    = "Bimbollos"
+    case bimbuñuelos  = "Bimbuñuelos"
+    case gansito      = "Gansito"
+    case integral     = "Integral"
+    case mediasNoches = "MediasNoches"
+    case panTostado   = "PanTostado"
+    case panBlanco    = "PanBlanco"
+    case panMolido    = "PanMolido"
+    case pinguinos    = "Pinguinos"
+    case canelitas    = "Canelitas"
 
     var displayName: String {
         switch self {
@@ -48,10 +48,12 @@ extension ShelfZoneProduct: Identifiable {
 }
 
 struct ShelfZone: Decodable {
-    let zone: String            // "top" | "eye" | "bottom"
+    let zone: String            // "level_1"…"level_N" o "top"/"eye"/"bottom"
     let label: String
     let recommendation: String  // "urgente" | "reponer" | "ok"
     let products: [ShelfZoneProduct]
+    let isNewLevel: Bool?       // la IA recomienda agregar este nivel
+    let shouldRemove: Bool?     // la IA recomienda quitar este nivel
 }
 
 extension ShelfZone: Identifiable {
@@ -59,9 +61,10 @@ extension ShelfZone: Identifiable {
 }
 
 struct ShelfAnalysisResult: Decodable {
-    let overallStatus: String  // "critico" | "atencion" | "bueno"
+    let overallStatus: String   // "critico" | "atencion" | "bueno"
     let shelfZones: [ShelfZone]
     let estimatedRestock: Int
+    let voiceSummary: String?   // texto listo para TTS con ElevenLabs
 }
 
 // MARK: - Service
@@ -79,63 +82,57 @@ final class ShelfAnalysisService {
 
         let base64 = imageData.base64EncodedString()
 
-        // Catálogo completo de productos con su imageName exacto
         let catalog = ShelfProduct.allCases
             .map { "  - \($0.displayName) → imageName: \"\($0.rawValue)\"" }
             .joined(separator: "\n")
 
-        // Qué hay disponible en el camión (cruzado con el catálogo)
         let truckStr = inventory
             .map { "\($0.product.name): \($0.available) pzs" }
             .joined(separator: " | ")
 
         let userPrompt = """
-        Analiza la foto del anaquel de la tienda "\(store.name)".
+        Eres un asesor de anaquel Bimbo experto. Analiza la foto del anaquel de "\(store.name)".
 
-        CATÁLOGO DE PRODUCTOS BIMBO (usa el imageName EXACTO en tu respuesta):
+        CATÁLOGO DE PRODUCTOS (usa el imageName EXACTO):
         \(catalog)
 
-        INVENTARIO DISPONIBLE EN CAMIÓN: \(truckStr)
-        MÁS VENDIDOS EN ESTA TIENDA: \(store.bestSellers.joined(separator: ", "))
+        INVENTARIO CAMIÓN: \(truckStr)
+        MÁS VENDIDOS: \(store.bestSellers.joined(separator: ", "))
         BAJA ROTACIÓN: \(store.lowRotationProducts.joined(separator: ", "))
 
-        Observa la foto: detecta los espacios vacíos o con poco producto en el anaquel.
-        Recomienda qué productos del catálogo colocar en cada nivel para optimizar ventas.
+        INSTRUCCIONES:
+        1. Detecta cuántos niveles físicos tiene el anaquel en la foto.
+        2. Para cada nivel existente, recomienda qué productos van ahí y en qué cantidad.
+        3. Si detectas espacio vacío suficiente para un nivel extra, agrégalo con isNewLevel:true.
+        4. Si un nivel está muy vacío y no justifica existir, márcalo con shouldRemove:true.
+        5. Criterios de acomodo: productos más caros/populares a nivel vista, pan grande abajo, snacks arriba.
+        6. Genera un voiceSummary conciso en español (3-4 oraciones) para leer en voz alta al repartidor.
 
-        Responde SOLO con JSON válido, sin markdown, sin texto extra:
+        Responde SOLO con JSON válido, sin markdown:
         {
           "overallStatus": "critico"|"atencion"|"bueno",
           "shelfZones": [
             {
-              "zone": "top",
-              "label": "Nivel alto",
+              "zone": "level_1",
+              "label": "Nivel 1 - Alto",
               "recommendation": "urgente"|"reponer"|"ok",
+              "isNewLevel": false,
+              "shouldRemove": false,
               "products": [
                 {"name": "Pan Blanco", "imageName": "PanBlanco", "action": "reponer"|"ok"|"retirar", "qty": 6}
               ]
-            },
-            {
-              "zone": "eye",
-              "label": "Nivel vista",
-              "recommendation": "urgente"|"reponer"|"ok",
-              "products": [...]
-            },
-            {
-              "zone": "bottom",
-              "label": "Nivel bajo",
-              "recommendation": "urgente"|"reponer"|"ok",
-              "products": [...]
             }
           ],
-          "estimatedRestock": 14
+          "estimatedRestock": 14,
+          "voiceSummary": "El anaquel de Abarrotes Lupita requiere atención urgente. El nivel vista está prácticamente vacío y necesitas surtir Medias Noches y Gansito. Se recomienda colocar un total de 14 piezas para optimizar el espacio disponible."
         }
 
         Reglas:
-        - Usa SOLO los imageName del catálogo proporcionado, escritos exactamente igual
-        - Máximo 3 productos por zona
-        - qty debe ser entre 1 y 12
-        - Prioriza los más vendidos en nivel vista (eye)
-        - Si el anaquel se ve bien en una zona, usa recommendation "ok" y products vacío []
+        - Usa SOLO los imageName del catálogo, escritos exactamente igual
+        - Entre 2 y 5 niveles según lo que veas en la foto
+        - Máximo 3 productos por nivel
+        - qty entre 1 y 12
+        - voiceSummary: máximo 60 palabras, directo al repartidor, en español
         """
 
         let body: [String: Any] = [
@@ -153,7 +150,7 @@ final class ShelfAnalysisService {
                     ]
                 ]
             ],
-            "max_tokens": 900,
+            "max_tokens": 1000,
             "temperature": 0.2
         ]
 
@@ -196,24 +193,33 @@ final class ShelfAnalysisService {
         ShelfAnalysisResult(
             overallStatus: "atencion",
             shelfZones: [
-                ShelfZone(zone: "top", label: "Nivel alto", recommendation: "ok",
+                ShelfZone(zone: "level_1", label: "Nivel 1 - Alto", recommendation: "ok",
                           products: [
-                            ShelfZoneProduct(name: "Pan Blanco", imageName: "PanBlanco", action: "ok", qty: 0),
+                            ShelfZoneProduct(name: "Pan Blanco",  imageName: "PanBlanco",  action: "ok", qty: 0),
                             ShelfZoneProduct(name: "Pan Tostado", imageName: "PanTostado", action: "ok", qty: 0)
-                          ]),
-                ShelfZone(zone: "eye", label: "Nivel vista", recommendation: "urgente",
+                          ],
+                          isNewLevel: false, shouldRemove: false),
+                ShelfZone(zone: "level_2", label: "Nivel 2 - Vista ⭐", recommendation: "urgente",
                           products: [
                             ShelfZoneProduct(name: "Medias Noches", imageName: "MediasNoches", action: "reponer", qty: 8),
-                            ShelfZoneProduct(name: "Gansito", imageName: "Gansito", action: "reponer", qty: 4),
-                            ShelfZoneProduct(name: "Bimbollos", imageName: "Bimbollos", action: "reponer", qty: 6)
-                          ]),
-                ShelfZone(zone: "bottom", label: "Nivel bajo", recommendation: "reponer",
+                            ShelfZoneProduct(name: "Gansito",       imageName: "Gansito",       action: "reponer", qty: 4),
+                            ShelfZoneProduct(name: "Bimbollos",     imageName: "Bimbollos",     action: "reponer", qty: 6)
+                          ],
+                          isNewLevel: false, shouldRemove: false),
+                ShelfZone(zone: "level_3", label: "Nivel 3 - Bajo", recommendation: "reponer",
                           products: [
                             ShelfZoneProduct(name: "Canelitas", imageName: "Canelitas", action: "reponer", qty: 5),
                             ShelfZoneProduct(name: "Pingüinos", imageName: "Pinguinos", action: "reponer", qty: 4)
-                          ])
+                          ],
+                          isNewLevel: false, shouldRemove: false),
+                ShelfZone(zone: "level_4", label: "Nivel 4 - Extra (nuevo)", recommendation: "ok",
+                          products: [
+                            ShelfZoneProduct(name: "Artesano", imageName: "Artesano", action: "reponer", qty: 4)
+                          ],
+                          isNewLevel: true, shouldRemove: false)
             ],
-            estimatedRestock: 27
+            estimatedRestock: 31,
+            voiceSummary: "El anaquel de esta tienda requiere atención urgente. El nivel vista está vacío y necesitas surtir Medias Noches, Gansito y Bimbollos. Además se detectó espacio para agregar un cuarto nivel con Artesano. En total debes colocar 31 piezas."
         )
     }
 }

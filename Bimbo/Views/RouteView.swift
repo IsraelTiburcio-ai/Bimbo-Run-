@@ -246,23 +246,39 @@ struct RouteView: View {
     }
 
     private var handsFreeCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Modo manos libres", systemImage: "speaker.wave.2.fill")
-                .font(.headline.weight(.bold))
-            Button {
-                viewModel.mapsStatusMessage = "Resumen: \(viewModel.pendingCount) tiendas pendientes, \(viewModel.totalAvailableUnits) piezas en camion, \(viewModel.avoidedWaste) piezas de merma evitada."
-            } label: {
-                Label("Escuchar resumen de inventario", systemImage: "play.circle.fill")
-                    .font(.headline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 50)
+        let voice = VoiceService.shared
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Resumen del día", systemImage: "speaker.wave.2.fill")
+                    .font(.headline.weight(.bold))
+                Spacer()
+                VoiceToggleRow()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.deepBlue)
 
-            Text("Ideal mientras conduces: la app te habla, no te distrae.")
+            Text("Escucha un resumen de tus tiendas, inventario y kilómetros antes de salir.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            Button {
+                if voice.isPlaying { voice.stop() }
+                else { Task { await voice.speak(viewModel.daySummaryText) } }
+            } label: {
+                HStack(spacing: 8) {
+                    if voice.isLoading {
+                        ProgressView().tint(.white).scaleEffect(0.8)
+                    } else {
+                        Image(systemName: voice.isPlaying ? "stop.circle.fill" : "play.circle.fill")
+                            .font(.system(size: 18, weight: .bold))
+                    }
+                    Text(voice.isLoading ? "Preparando voz..." : voice.isPlaying ? "Detener resumen" : "Escuchar resumen del día")
+                        .font(.headline.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 50)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(voice.isPlaying ? .red : AppTheme.deepBlue)
+            .disabled(voice.isLoading || !voice.isEnabled)
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
