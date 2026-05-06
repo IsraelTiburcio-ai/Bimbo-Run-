@@ -61,15 +61,36 @@ struct TruckInventoryView: View {
     }
 
     private var summaryGrid: some View {
-        Grid(horizontalSpacing: 12, verticalSpacing: 12) {
-            GridRow {
-                KPIStatCard(title: "Disponibles", value: "\(viewModel.totalAvailableUnits)", subtitle: "piezas en camion", systemImage: "shippingbox.fill", tint: AppTheme.success)
-                KPIStatCard(title: "Sugeridos", value: "\(viewModel.totalReservedSuggested)", subtitle: "para tiendas pendientes", systemImage: "sparkles", tint: AppTheme.electricBlue)
+        VStack(spacing: 12) {
+            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+                GridRow {
+                    KPIStatCard(title: "Disponibles", value: "\(viewModel.totalAvailableUnits)", subtitle: "piezas en camion", systemImage: "shippingbox.fill", tint: AppTheme.success)
+                    KPIStatCard(title: "Sugeridos", value: "\(viewModel.totalReservedSuggested)", subtitle: "para tiendas pendientes", systemImage: "sparkles", tint: AppTheme.electricBlue)
+                }
+                GridRow {
+                    KPIStatCard(title: "Retirados", value: "\(viewModel.totalReturnedUnits)", subtitle: "devoluciones", systemImage: "arrow.uturn.backward.circle.fill", tint: AppTheme.bimboRed)
+                    KPIStatCard(title: "Alertas", value: "\(viewModel.lowInventoryItems.count)", subtitle: "bajo inventario", systemImage: "exclamationmark.triangle.fill", tint: AppTheme.warning)
+                }
             }
-            GridRow {
-                KPIStatCard(title: "Retirados", value: "\(viewModel.totalReturnedUnits)", subtitle: "devoluciones", systemImage: "arrow.uturn.backward.circle.fill", tint: AppTheme.bimboRed)
-                KPIStatCard(title: "Alertas", value: "\(viewModel.lowInventoryItems.count)", subtitle: "bajo inventario", systemImage: "exclamationmark.triangle.fill", tint: AppTheme.warning)
+
+            // Valor total del inventario
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Valor total en camión")
+                        .font(.headline.weight(.bold))
+                    Text("Precio de venta × piezas disponibles")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("$\(String(format: "%.0f", viewModel.inventoryTotalValue))")
+                    .font(.system(size: 26, weight: .black, design: .rounded))
+                    .foregroundStyle(AppTheme.success)
             }
+            .padding(14)
+            .background(AppTheme.success.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(AppTheme.success.opacity(0.2), lineWidth: 1.5))
         }
     }
 

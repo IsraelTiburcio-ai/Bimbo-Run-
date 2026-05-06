@@ -114,6 +114,10 @@ final class RoutePerfectaViewModel {
         truckInventory.reduce(0) { $0 + $1.returned }
     }
 
+    var inventoryTotalValue: Double {
+        truckInventory.reduce(0) { $0 + Double($1.available) * $1.product.salePrice }
+    }
+
     func store(for id: UUID?) -> Store? {
         guard let id else { return nextStore ?? stores.first }
         return stores.first { $0.id == id }
@@ -421,79 +425,55 @@ final class RoutePerfectaViewModel {
 }
 
 extension Product {
+    // Precios de venta basados en Bodega Aurrera / Walmart México 2024
     static let mockProducts: [Product] = [
-<<<<<<< HEAD
-        Product(sku: "PAN-BLANCO", name: "Pan Blanco", category: "Pan", purchasePrice: 38, salePrice: 48, symbolName: "shippingbox.fill"),
-        Product(sku: "MEDIAS-NOCHES", name: "Medias Noches", category: "Pan", purchasePrice: 42, salePrice: 56, symbolName: "takeoutbag.and.cup.and.straw.fill"),
-=======
-        Product(sku: "PAN-BLANCO", name: "Pan Bimbo Natural 620g", category: "Pan de caja", purchasePrice: 38, salePrice: 50, symbolName: "shippingbox.fill"),
-        Product(sku: "PAN-INTEGRAL", name: "Pan Integral 620g", category: "Pan de caja", purchasePrice: 43, salePrice: 56, symbolName: "leaf.fill"),
-        Product(sku: "PAN-CERO-CERO", name: "Pan Cero Cero", category: "Pan de caja", purchasePrice: 48, salePrice: 62, symbolName: "0.circle.fill"),
-        Product(sku: "PAN-ARTESANO", name: "Pan Artesano", category: "Pan de caja", purchasePrice: 52, salePrice: 66, symbolName: "seal.fill"),
-        Product(sku: "PAN-MULTIGRANO", name: "Pan Multigrano", category: "Pan de caja", purchasePrice: 54, salePrice: 68, symbolName: "circle.grid.3x3.fill"),
-        Product(sku: "MEDIAS-NOCHES", name: "Medias Noches Bimbo", category: "Pan especial", purchasePrice: 20, salePrice: 28, symbolName: "takeoutbag.and.cup.and.straw.fill"),
-        Product(sku: "BIMBOLLOS", name: "Bimbollos", category: "Pan especial", purchasePrice: 12, salePrice: 17, symbolName: "bag.fill"),
-        Product(sku: "PAN-HOT-DOG", name: "Pan Hot Dog", category: "Pan especial", purchasePrice: 18, salePrice: 24, symbolName: "rectangle.fill"),
-        Product(sku: "PAN-HAMBURGUESA", name: "Pan Hamburguesa", category: "Pan especial", purchasePrice: 22, salePrice: 29, symbolName: "circle.fill"),
-        Product(sku: "PANQUECHOX", name: "Panquechox", category: "Bolleria", purchasePrice: 19, salePrice: 26, symbolName: "birthday.cake.fill"),
-        Product(sku: "ROLES-CANELA", name: "Roles con Canela", category: "Bolleria", purchasePrice: 16, salePrice: 21, symbolName: "circle.grid.2x2.fill"),
-        Product(sku: "MANTECHOX", name: "Mantechox Hershey's", category: "Bolleria", purchasePrice: 18, salePrice: 24, symbolName: "heart.fill"),
-        Product(sku: "BARRAS-MULTIGRANO", name: "Barras Multigrano", category: "Barras", purchasePrice: 11, salePrice: 16, symbolName: "rectangle.fill"),
-        Product(sku: "DONAS-CHOCOLATE", name: "Donas con Chocolate", category: "Pan dulce", purchasePrice: 13, salePrice: 19, symbolName: "circle.circle.fill"),
-        Product(sku: "DONAS-AZUCARADAS", name: "Donas Azucaradas", category: "Pan dulce", purchasePrice: 11, salePrice: 16, symbolName: "circle"),
-        Product(sku: "CONCHAS", name: "Conchas de Vainilla", category: "Pan dulce", purchasePrice: 13, salePrice: 19, symbolName: "cloud.fill"),
-        Product(sku: "BIMBUÑUELOS", name: "Bimbuñuelos", category: "Pan dulce", purchasePrice: 13, salePrice: 19, symbolName: "sparkles"),
-        Product(sku: "LITTLE-BITES", name: "Little Bites", category: "Pan dulce", purchasePrice: 17, salePrice: 23, symbolName: "square.grid.2x2.fill"),
-        Product(sku: "MINI-MANTECADAS", name: "Mini Mantecadas", category: "Pan dulce", purchasePrice: 15, salePrice: 21, symbolName: "birthday.cake.fill"),
-        Product(sku: "BRAN-FRUT", name: "Barritas Bran Frut", category: "Barras", purchasePrice: 10, salePrice: 15, symbolName: "capsule.fill"),
-        Product(sku: "PAN-TOSTADO-BRIOCHE", name: "Pan Tostado Brioche", category: "Tostados", purchasePrice: 15, salePrice: 21, symbolName: "square.fill"),
-        Product(sku: "MINI-PAN-TOSTADO", name: "Mini Pan Tostado", category: "Tostados", purchasePrice: 15, salePrice: 21, symbolName: "square.on.square.fill"),
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
-        Product(sku: "GANSITO", name: "Gansito", category: "Pastelito", purchasePrice: 16, salePrice: 23, symbolName: "birthday.cake.fill"),
-        Product(sku: "TAKIS", name: "Takis", category: "Snack", purchasePrice: 14, salePrice: 22, symbolName: "flame.fill"),
-        Product(sku: "BIM-NITO-001", name: "Nito", category: "Pastelito", purchasePrice: 15, salePrice: 22, symbolName: "seal.fill")
+        // Pan de caja
+        Product(sku: "PAN-BLANCO",         name: "Pan Bimbo Natural 620g",  category: "Pan de caja",  purchasePrice: 33, salePrice: 44,  symbolName: "shippingbox.fill"),
+        Product(sku: "PAN-INTEGRAL",        name: "Pan Integral 620g",       category: "Pan de caja",  purchasePrice: 44, salePrice: 58,  symbolName: "leaf.fill"),
+        Product(sku: "PAN-CERO-CERO",       name: "Pan Cero Cero",           category: "Pan de caja",  purchasePrice: 49, salePrice: 64,  symbolName: "0.circle.fill"),
+        Product(sku: "PAN-ARTESANO",        name: "Pan Artesano",            category: "Pan de caja",  purchasePrice: 53, salePrice: 68,  symbolName: "seal.fill"),
+        Product(sku: "PAN-MULTIGRANO",      name: "Pan Multigrano",          category: "Pan de caja",  purchasePrice: 55, salePrice: 70,  symbolName: "circle.grid.3x3.fill"),
+        // Pan especial
+        Product(sku: "MEDIAS-NOCHES",       name: "Medias Noches Bimbo",     category: "Pan especial", purchasePrice: 21, salePrice: 29,  symbolName: "takeoutbag.and.cup.and.straw.fill"),
+        Product(sku: "BIMBOLLOS",           name: "Bimbollos",               category: "Pan especial", purchasePrice: 13, salePrice: 18,  symbolName: "bag.fill"),
+        Product(sku: "PAN-HOT-DOG",         name: "Pan Hot Dog",             category: "Pan especial", purchasePrice: 19, salePrice: 26,  symbolName: "rectangle.fill"),
+        Product(sku: "PAN-HAMBURGUESA",     name: "Pan Hamburguesa",         category: "Pan especial", purchasePrice: 23, salePrice: 31,  symbolName: "circle.fill"),
+        // Bollería
+        Product(sku: "PANQUECHOX",          name: "Panquechox",              category: "Bollería",     purchasePrice: 20, salePrice: 27,  symbolName: "birthday.cake.fill"),
+        Product(sku: "ROLES-CANELA",        name: "Roles con Canela",        category: "Bollería",     purchasePrice: 17, salePrice: 23,  symbolName: "circle.grid.2x2.fill"),
+        Product(sku: "MANTECHOX",           name: "Mantechox Hershey's",     category: "Bollería",     purchasePrice: 19, salePrice: 26,  symbolName: "heart.fill"),
+        // Barras
+        Product(sku: "BARRAS-MULTIGRANO",   name: "Barras Multigrano",       category: "Barras",       purchasePrice: 12, salePrice: 17,  symbolName: "capsule.fill"),
+        Product(sku: "BRAN-FRUT",           name: "Barritas Bran Frut",      category: "Barras",       purchasePrice: 11, salePrice: 16,  symbolName: "rays"),
+        // Pan dulce
+        Product(sku: "DONAS-CHOCOLATE",     name: "Donas con Chocolate",     category: "Pan dulce",    purchasePrice: 14, salePrice: 20,  symbolName: "circle.circle.fill"),
+        Product(sku: "DONAS-AZUCARADAS",    name: "Donas Azucaradas",        category: "Pan dulce",    purchasePrice: 12, salePrice: 17,  symbolName: "circle"),
+        Product(sku: "CONCHAS",             name: "Conchas de Vainilla",     category: "Pan dulce",    purchasePrice: 14, salePrice: 20,  symbolName: "cloud.fill"),
+        Product(sku: "BIMBUÑUELOS",         name: "Bimbuñuelos",             category: "Pan dulce",    purchasePrice: 14, salePrice: 20,  symbolName: "sparkles"),
+        Product(sku: "LITTLE-BITES",        name: "Little Bites",            category: "Pan dulce",    purchasePrice: 18, salePrice: 25,  symbolName: "square.grid.2x2.fill"),
+        Product(sku: "MINI-MANTECADAS",     name: "Mini Mantecadas",         category: "Pan dulce",    purchasePrice: 16, salePrice: 22,  symbolName: "star.fill"),
+        // Tostados
+        Product(sku: "PAN-TOSTADO-BRIOCHE", name: "Pan Tostado Brioche",     category: "Tostados",     purchasePrice: 16, salePrice: 22,  symbolName: "square.fill"),
+        Product(sku: "MINI-PAN-TOSTADO",    name: "Mini Pan Tostado",        category: "Tostados",     purchasePrice: 16, salePrice: 22,  symbolName: "square.on.square.fill"),
+        // Pastelitos y snacks
+        Product(sku: "GANSITO",             name: "Gansito",                 category: "Pastelito",    purchasePrice: 18, salePrice: 25,  symbolName: "birthday.cake.fill"),
+        Product(sku: "TAKIS",               name: "Takis Fuego",             category: "Snack",        purchasePrice: 16, salePrice: 22,  symbolName: "flame.fill"),
+        Product(sku: "BIM-NITO-001",        name: "Nito",                    category: "Pastelito",    purchasePrice: 16, salePrice: 22,  symbolName: "seal.fill")
     ]
 }
 
 extension TruckInventoryItem {
     static func mockInventory(products: [Product]) -> [TruckInventoryItem] {
-<<<<<<< HEAD
-        [
-            TruckInventoryItem(product: products[0], available: 34, reservedSuggested: 18, returned: 2, lowStockThreshold: 8),
-            TruckInventoryItem(product: products[1], available: 20, reservedSuggested: 16, returned: 0, lowStockThreshold: 6),
-            TruckInventoryItem(product: products[2], available: 9, reservedSuggested: 5, returned: 1, lowStockThreshold: 5),
-            TruckInventoryItem(product: products[3], available: 12, reservedSuggested: 18, returned: 0, lowStockThreshold: 6),
-            TruckInventoryItem(product: products[4], available: 16, reservedSuggested: 6, returned: 1, lowStockThreshold: 5)
-        ]
-=======
         let quantities: [String: Int] = [
-            "PAN-BLANCO": 80,
-            "PAN-INTEGRAL": 60,
-            "PAN-CERO-CERO": 40,
-            "PAN-ARTESANO": 30,
-            "PAN-MULTIGRANO": 25,
-            "MEDIAS-NOCHES": 50,
-            "BIMBOLLOS": 60,
-            "PAN-HOT-DOG": 45,
-            "PAN-HAMBURGUESA": 40,
-            "PANQUECHOX": 75,
-            "ROLES-CANELA": 60,
-            "MANTECHOX": 50,
-            "BARRAS-MULTIGRANO": 80,
-            "DONAS-CHOCOLATE": 50,
-            "DONAS-AZUCARADAS": 50,
-            "CONCHAS": 60,
-            "BIMBUÑUELOS": 50,
-            "LITTLE-BITES": 70,
-            "MINI-MANTECADAS": 70,
-            "BRAN-FRUT": 100,
-            "PAN-TOSTADO-BRIOCHE": 80,
-            "MINI-PAN-TOSTADO": 80,
-            "GANSITO": 36,
-            "TAKIS": 24,
-            "BIM-NITO-001": 42
+            "PAN-BLANCO": 80, "PAN-INTEGRAL": 60, "PAN-CERO-CERO": 40,
+            "PAN-ARTESANO": 30, "PAN-MULTIGRANO": 25, "MEDIAS-NOCHES": 50,
+            "BIMBOLLOS": 60, "PAN-HOT-DOG": 45, "PAN-HAMBURGUESA": 40,
+            "PANQUECHOX": 75, "ROLES-CANELA": 60, "MANTECHOX": 50,
+            "BARRAS-MULTIGRANO": 80, "BRAN-FRUT": 100, "DONAS-CHOCOLATE": 50,
+            "DONAS-AZUCARADAS": 50, "CONCHAS": 60, "BIMBUÑUELOS": 50,
+            "LITTLE-BITES": 70, "MINI-MANTECADAS": 70, "PAN-TOSTADO-BRIOCHE": 80,
+            "MINI-PAN-TOSTADO": 80, "GANSITO": 36, "TAKIS": 24, "BIM-NITO-001": 42
         ]
-
         return products.map { product in
             let available = quantities[product.sku] ?? 20
             return TruckInventoryItem(
@@ -504,21 +484,16 @@ extension TruckInventoryItem {
                 lowStockThreshold: max(6, available / 10)
             )
         }
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
     }
 }
 
 extension Store {
     static func mockStores(products: [Product]) -> [Store] {
-<<<<<<< HEAD
-        [
-=======
         func product(_ sku: String) -> Product {
             products.first { $0.sku == sku } ?? products[0]
         }
 
         return [
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
             Store(
                 name: "Abarrotes Lupita",
                 clientId: "CLI-20418",
@@ -533,24 +508,14 @@ extension Store {
                 lastVisit: "Ayer, 9:20 AM",
                 lastReturn: "3 piezas Pan Blanco",
                 estimatedBudget: 2800,
-<<<<<<< HEAD
-                bestSellers: ["Medias Noches", "Pan Blanco", "Takis"],
-                lowRotationProducts: ["Pan Integral", "Gansito"],
-                lastDeliveredProducts: [
-                    OrderItem(product: products[0], quantity: 12, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: products[1], quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
-                ],
-                visitHistory: ["Ayer: alta venta de Medias Noches", "Semana pasada: retirar Pan Blanco proximo a caducar"]
-=======
                 bestSellers: ["Medias Noches Bimbo", "Barras Multigrano", "Donas con Chocolate"],
                 lowRotationProducts: ["Pan Multigrano", "Gansito"],
                 lastDeliveredProducts: [
-                    OrderItem(product: product("MEDIAS-NOCHES"), quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("MEDIAS-NOCHES"),    quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
                     OrderItem(product: product("BARRAS-MULTIGRANO"), quantity: 14, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: product("DONAS-CHOCOLATE"), quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
+                    OrderItem(product: product("DONAS-CHOCOLATE"),   quantity: 8,  action: .replenish, note: "Pedido anterior", availableInTruck: 0)
                 ],
                 visitHistory: ["Ayer: alta venta de barras y pan dulce", "Semana pasada: evitar exceso de pan de caja"]
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
             ),
             Store(
                 name: "Mini Super El Sol",
@@ -566,20 +531,12 @@ extension Store {
                 lastVisit: "Hace 3 dias",
                 lastReturn: "1 pieza Gansito",
                 estimatedBudget: 2100,
-<<<<<<< HEAD
-                bestSellers: ["Pan Blanco", "Nito"],
-                lowRotationProducts: ["Gansito"],
-                lastDeliveredProducts: [
-                    OrderItem(product: products[0], quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: products[2], quantity: 6, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
-=======
                 bestSellers: ["Bimbollos", "Pan Hamburguesa", "Little Bites"],
                 lowRotationProducts: ["Pan Cero Cero", "Gansito"],
                 lastDeliveredProducts: [
-                    OrderItem(product: product("BIMBOLLOS"), quantity: 12, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: product("LITTLE-BITES"), quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("BIMBOLLOS"),      quantity: 12, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("LITTLE-BITES"),   quantity: 10, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
                     OrderItem(product: product("PAN-HAMBURGUESA"), quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
                 ],
                 visitHistory: ["Hace 3 dias: baja rotacion de Gansito", "Semana 15: revisar caducidad de pan"]
             ),
@@ -597,20 +554,12 @@ extension Store {
                 lastVisit: "Lunes pasado",
                 lastReturn: "Sin devolucion",
                 estimatedBudget: 1600,
-<<<<<<< HEAD
-                bestSellers: ["Takis", "Nito"],
-                lowRotationProducts: ["Pan Integral"],
-                lastDeliveredProducts: [
-                    OrderItem(product: products[3], quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: products[4], quantity: 6, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
-=======
                 bestSellers: ["Barritas Bran Frut", "Roles con Canela", "Nito"],
                 lowRotationProducts: ["Pan Integral", "Pan Multigrano"],
                 lastDeliveredProducts: [
-                    OrderItem(product: product("BRAN-FRUT"), quantity: 16, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: product("ROLES-CANELA"), quantity: 8, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
-                    OrderItem(product: product("BIM-NITO-001"), quantity: 6, action: .replenish, note: "Pedido anterior", availableInTruck: 0)
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
+                    OrderItem(product: product("BRAN-FRUT"),    quantity: 16, action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("ROLES-CANELA"), quantity: 8,  action: .replenish, note: "Pedido anterior", availableInTruck: 0),
+                    OrderItem(product: product("BIM-NITO-001"), quantity: 6,  action: .replenish, note: "Pedido anterior", availableInTruck: 0)
                 ],
                 visitHistory: ["Lunes: buena venta de snacks", "Recomendacion: evitar exceso de pan integral"]
             )
