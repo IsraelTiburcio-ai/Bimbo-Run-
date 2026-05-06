@@ -19,4 +19,18 @@ enum GroqConfig {
     static var isConfigured: Bool {
         !apiKey.isEmpty
     }
+
+    static var defaultChatModel: String {
+        // Allow override from Info.plist or env var; otherwise provide a safe default
+        if let model = Bundle.main.infoDictionary?["GROQ_CHAT_MODEL"] as? String,
+           !model.isEmpty, !model.hasPrefix("$(") {
+            return model
+        }
+        if let model = ProcessInfo.processInfo.environment["GROQ_CHAT_MODEL"],
+           !model.isEmpty, !model.hasPrefix("$(") {
+            return model
+        }
+        // Groq recommended general-purpose chat model
+        return "llama-3.1-70b-versatile"
+    }
 }

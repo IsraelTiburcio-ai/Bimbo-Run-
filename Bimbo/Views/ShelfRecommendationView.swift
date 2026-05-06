@@ -206,10 +206,7 @@ struct ShelfRecommendationView: View {
         switch result.overallStatus {
         case "critico":  return .red
         case "atencion": return AppTheme.warning
-<<<<<<< HEAD
-=======
         case "foto_invalida": return AppTheme.bimboRed
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
         default:         return AppTheme.success
         }
     }
@@ -218,10 +215,7 @@ struct ShelfRecommendationView: View {
         switch result.overallStatus {
         case "critico":  return "exclamationmark.triangle.fill"
         case "atencion": return "exclamationmark.circle.fill"
-<<<<<<< HEAD
-=======
         case "foto_invalida": return "camera.metering.unknown"
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
         default:         return "checkmark.circle.fill"
         }
     }
@@ -230,10 +224,7 @@ struct ShelfRecommendationView: View {
         switch result.overallStatus {
         case "critico":  return "Anaquel crítico"
         case "atencion": return "Requiere atención"
-<<<<<<< HEAD
-=======
         case "foto_invalida": return "Necesita otra foto"
->>>>>>> 1fed7581ee2cae5446bcda5fd7074e0946edca90
         default:         return "Anaquel en buen estado"
         }
     }
@@ -440,3 +431,4 @@ struct ProductImageCard: View {
     let mock = ShelfAnalysisService().mockResult()
     ShelfRecommendationView(result: mock, storeName: "Abarrotes Lupita")
 }
+
