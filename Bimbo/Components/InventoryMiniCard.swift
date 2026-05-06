@@ -33,28 +33,6 @@ struct InventoryMiniCard: View {
                 inventoryMetric("Dev.", item.returned, AppTheme.bimboRed)
             }
 
-            Divider()
-
-            HStack {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("PVP")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text("$\(String(format: "%.2f", item.product.salePrice))")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(AppTheme.deepBlue)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text("Valor en camión")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text("$\(String(format: "%.0f", Double(item.available) * item.product.salePrice))")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(AppTheme.success)
-                }
-            }
-
             if item.isLowStock && !compact {
                 Label("Bajo inventario", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption.weight(.bold))
