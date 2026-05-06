@@ -5,8 +5,10 @@ struct StoreDetailView: View {
     var storeId: UUID
     @Binding var path: [AppRoute]
 
-    // Cámara de anaquel
-    @State private var showShelfCamera = false
+    // Sheets
+    @State private var showShelfCamera   = false
+    @State private var showVoiceInput    = false
+    @State private var showLevantarPedido = false
 
     // Checklist: producto más vendido
     @State private var bestSellerExpanded = false
@@ -50,7 +52,7 @@ struct StoreDetailView: View {
                     // ── Levantar Pedido ──────────────────────────
                     Button {
                         viewModel.startVisit(storeId: store.id)
-                        path.append(.finalOrder(store.id))
+                        showLevantarPedido = true
                     } label: {
                         Label("Levantar Pedido", systemImage: "cart.fill.badge.plus")
                             .font(.headline.weight(.bold))
@@ -73,6 +75,16 @@ struct StoreDetailView: View {
                 ShelfCameraView(store: store, inventory: viewModel.truckInventory)
             }
         }
+        .sheet(isPresented: $showVoiceInput) {
+            if let store {
+                VoiceStoreInputView(store: store) { fields in
+                    viewModel.applyVoiceStoreFields(storeId: store.id, fields: fields)
+                }
+            }
+        }
+        .sheet(isPresented: $showLevantarPedido) {
+            LevantarPedidoView(viewModel: viewModel, storeId: storeId)
+        }
     }
 
     // MARK: - Hero
@@ -91,11 +103,32 @@ struct StoreDetailView: View {
                 StatusBadge(status: store.status)
                     .background(.white.opacity(0.12), in: Capsule())
             }
+
             Label(store.address, systemImage: "mappin.and.ellipse")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.86))
-            Text("Presupuesto estimado: $\(Int(store.estimatedBudget))")
-                .font(.headline.weight(.bold))
+
+            HStack {
+                Text("Presupuesto: $\(Int(store.estimatedBudget))")
+                    .font(.headline.weight(.bold))
+                Spacer()
+                // Botón de micrófono IA
+                Button {
+                    showVoiceInput = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Actualizar con voz")
+                            .font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(AppTheme.deepBlue)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.white.opacity(0.92), in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .foregroundStyle(.white)
         .padding(18)

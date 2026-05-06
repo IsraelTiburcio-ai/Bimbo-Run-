@@ -324,6 +324,31 @@ final class RoutePerfectaViewModel {
         }
     }
 
+    // MARK: - Actualización por voz IA
+
+    func applyVoiceStoreFields(storeId: UUID, fields: ParsedStoreFields) {
+        updateStore(storeId) { store in
+            if let budget = fields.estimatedBudget, budget > 0 {
+                store.estimatedBudget = budget
+            }
+            if let sellers = fields.bestSellers, !sellers.isEmpty {
+                let merged = sellers + store.bestSellers.filter { !sellers.contains($0) }
+                store.bestSellers = merged
+            }
+            if let lowRot = fields.lowRotationProducts, !lowRot.isEmpty {
+                let merged = lowRot + store.lowRotationProducts.filter { !lowRot.contains($0) }
+                store.lowRotationProducts = merged
+            }
+            if let visit = fields.lastVisit, !visit.isEmpty {
+                store.lastVisit = visit
+            }
+            if let ret = fields.lastReturn, !ret.isEmpty {
+                store.lastReturn = ret
+            }
+            store.visitHistory.insert("Datos actualizados por voz IA", at: 0)
+        }
+    }
+
     // MARK: - Checklist interactivo
 
     func recordBestSeller(storeId: UUID, product: String) {
