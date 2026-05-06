@@ -324,6 +324,47 @@ final class RoutePerfectaViewModel {
         }
     }
 
+    // MARK: - Checklist interactivo
+
+    func recordBestSeller(storeId: UUID, product: String) {
+        let trimmed = product.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        updateStore(storeId) { store in
+            if !store.bestSellers.contains(trimmed) { store.bestSellers.insert(trimmed, at: 0) }
+            store.visitHistory.insert("Más vendido registrado: \(trimmed)", at: 0)
+        }
+    }
+
+    func recordLowRotation(storeId: UUID, product: String) {
+        let trimmed = product.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        updateStore(storeId) { store in
+            if !store.lowRotationProducts.contains(trimmed) { store.lowRotationProducts.insert(trimmed, at: 0) }
+            store.visitHistory.insert("Baja rotación registrada: \(trimmed)", at: 0)
+        }
+    }
+
+    func recordTodayVisit(storeId: UUID) {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "es_MX")
+        fmt.dateFormat = "d MMM, h:mm a"
+        let label = fmt.string(from: Date())
+        updateStore(storeId) { store in
+            store.lastVisit = "Hoy, \(label)"
+            store.visitHistory.insert("Visita registrada: \(label)", at: 0)
+        }
+    }
+
+    func recordWithdrawal(storeId: UUID, quantity: Int) {
+        guard quantity > 0 else { return }
+        updateStore(storeId) { store in
+            store.lastReturn = "\(quantity) piezas retiradas hoy"
+            store.visitHistory.insert("Retiro de \(quantity) piezas registrado", at: 0)
+        }
+        avoidedWaste += quantity
+        removedProductsCount += quantity
+    }
+
     func resetScan(storeId: UUID?) {
         scannedProducts = []
         scanAlerts = []
